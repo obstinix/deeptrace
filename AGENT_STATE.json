@@ -1,15 +1,1 @@
-{
-  "schema_version": "1.0",
-  "repo": "obstinix/deepfake_recognition",
-  "current_phase": 8,
-  "phase_status": {
-    "0": "done", "1": "done", "2": "done", "3": "done",
-    "4": "done", "5": "done", "6": "done", "7": "done", "8": "done"
-  },
-  "last_completed_task": "Phase 8 — Final README and project wrap-up",
-  "notes": [
-    "All phases complete. To train: get Kaggle creds → run download_dataset.py auto → run train.py",
-    "Smoke test (no GPU, no internet): python scripts/download_dataset.py synthetic --output data/frames --n-images 400",
-    "Then: python training/train.py --config training/configs/resnet18.yaml --data data/frames --max-samples 100"
-  ]
-}
+
