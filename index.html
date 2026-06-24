@@ -284,6 +284,14 @@
 </div>
 </div>
 </section>
+
+<section class="mb-xl hidden" id="scan-history">
+  <h2 class="font-label-caps text-label-caps text-on-surface-variant mb-lg tracking-[0.3em] uppercase border-b border-outline-variant/10 pb-2">
+    Session Scan Log
+  </h2>
+  <div class="space-y-sm" id="history-list"></div>
+</section>
+
 <!-- Live Detection Feed -->
 <section class="mb-xl">
 <h2 class="font-label-caps text-label-caps text-on-surface-variant mb-lg tracking-[0.3em] uppercase border-b border-outline-variant/10 pb-2">Real-Time Threat Vector Feed</h2>
@@ -509,6 +517,28 @@
     }
     
     initConfig().then(() => {
+        const scanLog = [];
+
+        function addToHistory(filename, label, confidence, processingMs) {
+            scanLog.unshift({ filename, label, confidence, processingMs, ts: new Date() });
+            const section = document.getElementById('scan-history');
+            section.classList.remove('hidden');
+            const list = document.getElementById('history-list');
+            list.innerHTML = scanLog.slice(0, 10).map(entry => `
+                <div class="elevated bg-surface-container-low p-md rounded-lg flex items-center justify-between gap-md">
+                    <div class="flex items-center gap-md min-w-0">
+                        <span class="w-2 h-2 rounded-full flex-shrink-0 ${entry.label === 'fake' ? 'bg-[red]' : 'bg-primary'}"></span>
+                        <span class="font-data-sm text-data-sm text-on-surface truncate">${entry.filename}</span>
+                    </div>
+                    <div class="flex items-center gap-md flex-shrink-0">
+                        <span class="font-data-sm text-data-sm ${entry.label === 'fake' ? 'text-[red]' : 'text-primary'} uppercase font-bold">${entry.label}</span>
+                        <span class="font-data-sm text-data-sm text-on-surface-variant">${Math.round(entry.confidence * 100)}%</span>
+                        <span class="font-data-sm text-data-sm text-on-surface-variant opacity-60">${entry.processingMs}ms</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
         // Check Health
         fetch(`${API_BASE_URL}/api/health`)
             .then(res => res.json())
@@ -576,6 +606,7 @@
                 verdictBar.style.width = `${conf}%`;
                 confidenceText.textContent = `${conf}%`;
                 speedText.textContent = `${data.processing_ms} ms`;
+                addToHistory(file.name, data.label, data.confidence, data.processing_ms);
                 
                 if (data.gradcam_image) {
                     document.getElementById('gradcam-container').classList.remove('hidden');
