@@ -10,7 +10,8 @@ Label mapping: real=0, fake=1
 """
 
 from __future__ import annotations
-import pickle
+import hashlib
+import json
 import random
 from pathlib import Path
 
@@ -23,6 +24,18 @@ from deepfake_recognition.data.splitter import stratified_split
 
 LABEL_MAP = {"real": 0, "fake": 1}
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
+
+def _cache_key(root_dir: Path) -> str:
+    paths = sorted(
+        p for cls_dir in [root_dir / "real", root_dir / "fake"]
+        if cls_dir.exists()
+        for p in cls_dir.iterdir()
+        if p.suffix.lower() in IMAGE_EXTENSIONS
+    )
+    digest = hashlib.md5(
+        "".join(f"{p}:{p.stat().st_mtime}" for p in paths).encode()
+    ).hexdigest()
+    return digest
 
 
 class DeepfakeDataset(Dataset):
@@ -57,10 +70,14 @@ class DeepfakeDataset(Dataset):
             self.samples = self.samples[:max_samples]
 
     def _load_or_scan(self) -> list[tuple[Path, int]]:
-        cache = self.root_dir / ".dataset_cache.pkl"
-        if cache.exists():
-            with open(cache, "rb") as f:
-                return pickle.load(f)
+        manifest_path = self.root_dir / ".dataset_manifest.json"
+        current_key = _cache_key(self.root_dir)
+
+        if manifest_path.exists():
+            with open(manifest_path) as f:
+                data = json.load(f)
+            if data.get("cache_key") == current_key:
+                return [(Path(e["path"]), e["label"]) for e in data["samples"]]
 
         samples = []
         for cls_name, label in LABEL_MAP.items():
@@ -74,9 +91,13 @@ class DeepfakeDataset(Dataset):
                 if p.suffix.lower() in IMAGE_EXTENSIONS:
                     samples.append((p, label))
 
-        with open(cache, "wb") as f:
-            pickle.dump(samples, f)
-        print(f"Scanned {len(samples):,} images → cached at {cache}")
+        with open(manifest_path, "w") as f:
+            json.dump({
+                "cache_key": current_key,
+                "samples": [{"path": str(p), "label": l} for p, l in samples]
+            }, f)
+
+        print(f"Scanned {len(samples):,} images → manifest cached")
         return samples
 
     def __len__(self) -> int:
