@@ -1,9 +1,9 @@
 """Weighted soft-voting ensemble of deepfake detection models."""
 from __future__ import annotations
+
 from pathlib import Path
 
 import torch
-import torch.nn.functional as F
 
 
 class EnsemblePredictor:
@@ -44,7 +44,6 @@ class EnsemblePredictor:
         self.weights = [w / total for w in self.weights]
 
     def predict_pil(self, img, use_tta: bool = False) -> dict:
-        from PIL import Image
         all_probs = []
         for predictor, weight in zip(self.predictors, self.weights):
             r = predictor.predict_pil(img, use_tta=use_tta)
@@ -62,5 +61,5 @@ class EnsemblePredictor:
         }
 
     @classmethod
-    def from_config(cls, cfg: dict, device: str = "auto") -> "EnsemblePredictor":
+    def from_config(cls, cfg: dict, device: str = "auto") -> EnsemblePredictor:
         return cls(members=cfg["ensemble"]["models"], device=device)

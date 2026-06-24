@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import Any
 
@@ -47,7 +46,7 @@ class TrainingConfig(BaseModel):
     checkpoint_dir: str = "checkpoints"
 
     @classmethod
-    def from_yaml(cls, path: str | Path) -> "TrainingConfig":
+    def from_yaml(cls, path: str | Path) -> TrainingConfig:
         """Load config from a YAML file, with defaults for missing keys."""
         with open(path) as f:
             raw = yaml.safe_load(f) or {}

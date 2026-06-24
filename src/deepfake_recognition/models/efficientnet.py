@@ -1,8 +1,9 @@
 """EfficientNet-B3 fine-tuned for deepfake detection."""
 from __future__ import annotations
+
+import timm
 import torch
 import torch.nn as nn
-import timm
 
 
 class DeepfakeEfficientNet(nn.Module):

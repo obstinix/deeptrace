@@ -12,16 +12,15 @@ import json
 import sys
 from pathlib import Path
 
-import torch
 import yaml
 from torch.utils.data import DataLoader
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from deepfake_recognition.models import get_model
 from deepfake_recognition.data.dataset import DeepfakeDataset
 from deepfake_recognition.data.transforms import get_train_transforms, get_val_transforms
+from deepfake_recognition.models import get_model
 from deepfake_recognition.training.trainer import Trainer
 
 

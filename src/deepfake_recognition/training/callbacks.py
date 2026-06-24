@@ -1,9 +1,10 @@
 """Early stopping and model checkpointing."""
 from __future__ import annotations
-import shutil
+
 import json
 import subprocess
 from pathlib import Path
+
 import torch
 
 

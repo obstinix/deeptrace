@@ -1,8 +1,9 @@
 """Metric tracking across batches."""
 from __future__ import annotations
-import torch
+
 import numpy as np
-from sklearn.metrics import roc_auc_score, f1_score, confusion_matrix
+import torch
+from sklearn.metrics import confusion_matrix, f1_score, roc_auc_score
 
 
 class MetricTracker:

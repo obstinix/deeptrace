@@ -1,6 +1,9 @@
-from deepfake_recognition.models.resnet import DeepfakeResNet18, build_model as build_resnet
-from deepfake_recognition.models.efficientnet import DeepfakeEfficientNet, build_model as build_efficientnet
-from deepfake_recognition.models.vit import DeepfakeViT, build_model as build_vit
+from deepfake_recognition.models.efficientnet import DeepfakeEfficientNet
+from deepfake_recognition.models.efficientnet import build_model as build_efficientnet
+from deepfake_recognition.models.resnet import DeepfakeResNet18
+from deepfake_recognition.models.resnet import build_model as build_resnet
+from deepfake_recognition.models.vit import DeepfakeViT
+from deepfake_recognition.models.vit import build_model as build_vit
 
 MODEL_REGISTRY = {
     "resnet18": build_resnet,

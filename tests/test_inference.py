@@ -1,7 +1,8 @@
 """Tests for predictor utilities that don't require a trained checkpoint."""
 from __future__ import annotations
+
 import sys
-from pathlib import Path
+
 sys.path.insert(0, "src")
 
 def test_tta_returns_8_transforms():

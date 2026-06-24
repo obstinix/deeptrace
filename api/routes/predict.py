@@ -1,9 +1,8 @@
 from __future__ import annotations
 
+import asyncio
 import io
 import time
-
-import asyncio
 from functools import partial
 
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile

@@ -1,9 +1,12 @@
 """API middleware for tracking request metrics."""
 from __future__ import annotations
+
 import time
+
 from fastapi import Request
 
 from api.db import increment
+
 
 async def track_metrics(request: Request, call_next):
     t0 = time.time()

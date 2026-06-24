@@ -1,4 +1,7 @@
-import torch, sys
+import sys
+
+import torch
+
 sys.path.insert(0, "src")
 
 def test_resnet18_shape():
@@ -22,6 +25,7 @@ def test_model_registry():
     assert m is not None
 
 def test_unknown_model_raises():
-    from deepfake_recognition.models import get_model
     import pytest
+
+    from deepfake_recognition.models import get_model
     with pytest.raises(ValueError): get_model({"name":"nonexistent"})

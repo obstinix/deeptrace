@@ -1,8 +1,9 @@
 """ViT-Base/16 fine-tuned for binary deepfake classification."""
 from __future__ import annotations
+
+import timm
 import torch
 import torch.nn as nn
-import timm
 
 
 class DeepfakeViT(nn.Module):

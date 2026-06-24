@@ -25,16 +25,16 @@ def test_predict_no_model_503():
     assert r.status_code == 503
 
 def test_predict_too_large_413():
-    from fastapi.testclient import TestClient
     from api.main import app
+    from fastapi.testclient import TestClient
     app.state.predictor = object()
     r = TestClient(app).post("/api/predict/image",
                               files={"file":("big.jpg",b"x"*(11*1024*1024),"image/jpeg")})
     assert r.status_code == 413
 
 def test_predict_wrong_type_415():
-    from fastapi.testclient import TestClient
     from api.main import app
+    from fastapi.testclient import TestClient
     app.state.predictor = object()
     r = TestClient(app).post("/api/predict/image",
                               files={"file":("f.pdf",b"%PDF","application/pdf")})

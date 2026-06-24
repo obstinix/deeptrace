@@ -1,8 +1,9 @@
 """ResNet-18 fine-tuned for deepfake detection."""
 from __future__ import annotations
+
 import torch
 import torch.nn as nn
-from torchvision.models import resnet18, ResNet18_Weights
+from torchvision.models import ResNet18_Weights, resnet18
 
 
 class DeepfakeResNet18(nn.Module):

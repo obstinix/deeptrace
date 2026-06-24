@@ -1,7 +1,9 @@
+import sys
+
 import pytest
-from pathlib import Path
+import torch
 from PIL import Image
-import torch, sys
+
 sys.path.insert(0, "src")
 
 @pytest.fixture

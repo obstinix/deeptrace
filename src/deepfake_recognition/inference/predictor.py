@@ -1,12 +1,16 @@
 """Inference wrapper — loads checkpoint, predicts images and videos."""
 from __future__ import annotations
+
 import sys
 from pathlib import Path
-import cv2, torch, torch.nn.functional as F
+
+import cv2
+import torch
+import torch.nn.functional as F
 from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
-from deepfake_recognition.data.transforms import get_val_transforms, get_tta_transforms
+from deepfake_recognition.data.transforms import get_tta_transforms, get_val_transforms
 from deepfake_recognition.utils.gradcam import generate_gradcam_base64
 
 
@@ -19,7 +23,7 @@ class Predictor:
 
     @classmethod
     def from_checkpoint(cls, checkpoint_path: str | Path,
-                         device: str = "auto") -> "Predictor":
+                         device: str = "auto") -> Predictor:
         if device == "auto":
             device = "cuda" if torch.cuda.is_available() else \
                      "mps" if torch.backends.mps.is_available() else "cpu"
@@ -51,7 +55,7 @@ class Predictor:
             logits = self.model(input_tensor)
         probs = F.softmax(logits, dim=1)[0]
         prob_fake, prob_real = probs[1].item(), probs[0].item()
-        
+
         # Generate Grad-CAM (using gradients necessitates requires_grad setup if model is frozen, but we will temporarily enable grad)
         gradcam_b64 = None
         try:
@@ -60,7 +64,7 @@ class Predictor:
                 gradcam_b64 = generate_gradcam_base64(self.model, input_tensor_grad, img)
         except Exception as e:
             print(f"WARNING: GradCAM generation failed: {e}")
-            
+
         return {"label": "fake" if prob_fake > 0.5 else "real",
                 "confidence": max(prob_real, prob_fake),
                 "prob_real": prob_real, "prob_fake": prob_fake,

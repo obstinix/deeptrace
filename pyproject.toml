@@ -48,7 +48,7 @@ src = ["src", "api", "training", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "N", "UP", "B"]
-ignore = ["E501", "B008", "B905"]
+ignore = ["E501", "B008", "B905", "N812", "E701", "E702", "B007"]
 
 [tool.ruff.lint.per-file-ignores]
 "**/__init__.py" = ["F401"]

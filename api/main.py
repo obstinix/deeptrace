@@ -1,19 +1,24 @@
 """FastAPI inference server for deepfake detection."""
-import os, sys, time
+import os
+import sys
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
+
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 from api.db import init_db
 from api.middleware import track_metrics
 from api.routes import model_router, predict_router, system_router
 from api.routes.model import _load_predictor
 from api.routes.predict import limiter
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

@@ -2,16 +2,16 @@
 Main training loop with mixed precision, gradient clipping, and WandB logging.
 """
 from __future__ import annotations
+
 import time
-from pathlib import Path
 
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from deepfake_recognition.training.metrics import MetricTracker
 from deepfake_recognition.training.callbacks import EarlyStopping, ModelCheckpoint
+from deepfake_recognition.training.metrics import MetricTracker
 
 
 class Trainer:

@@ -9,16 +9,19 @@ Usage:
       --data data/frames
 """
 
-import argparse, json, sys
+import argparse
+import sys
 from pathlib import Path
-import torch, yaml
+
+import torch
+import yaml
 from torch.utils.data import DataLoader
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from deepfake_recognition.models import get_model
 from deepfake_recognition.data.dataset import DeepfakeDataset
 from deepfake_recognition.data.transforms import get_val_transforms
+from deepfake_recognition.models import get_model
 from deepfake_recognition.training.metrics import MetricTracker
 
 
@@ -60,7 +63,7 @@ def main():
             tracker.update(logits, labels, loss.item())
 
     metrics = tracker.compute()
-    print(f"\nTest metrics:")
+    print("\nTest metrics:")
     print(f"  Accuracy : {metrics['accuracy']:.4f}")
     print(f"  AUC-ROC  : {metrics['auc']:.4f}")
     print(f"  F1       : {metrics['f1']:.4f}")
