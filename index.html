@@ -490,7 +490,7 @@
         });
     });
     // API Wiring
-    const API_BASE_URL = 'http://localhost:8000'; // Default FastAPI port
+    let API_BASE_URL = '';
     const uploadInput = document.getElementById('media-upload');
     const dropzoneText = document.getElementById('dropzone-text');
     const verdictBar = document.getElementById('verdict-bar');
@@ -498,98 +498,109 @@
     const speedText = document.getElementById('speed-text');
     const statusText = document.getElementById('status-text');
     const confidenceText = document.getElementById('confidence-text');
-    
-    // Check Health
-    fetch(`${API_BASE_URL}/api/health`)
-        .then(res => res.json())
-        .then(data => {
-            if (data.model_loaded) {
-                statusText.textContent = "System Ready - Model Loaded";
-            } else {
-                statusText.textContent = "Warning: Model Not Loaded";
-                document.getElementById('status-indicator').classList.replace('bg-primary', 'bg-[red]');
-            }
-        })
-        .catch(err => {
-            statusText.textContent = "Backend Offline";
-            document.getElementById('status-indicator').classList.replace('bg-primary', 'bg-[red]');
-        });
 
-    uploadInput.addEventListener('change', async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        dropzoneText.textContent = `Analyzing ${file.name}...`;
-        statusText.textContent = "Processing...";
-        verdictText.textContent = "Analyzing...";
-        verdictBar.style.width = '50%';
-        confidenceText.textContent = '--%';
-
-        const isVideo = file.type.startsWith('video');
-        const endpoint = isVideo ? '/api/predict/video' : '/api/predict/image';
-        
-        document.getElementById('diagnostics-cluster').classList.remove('hidden');
-        document.getElementById('gradcam-container').classList.add('hidden');
-        document.getElementById('frame-timeline-container').classList.add('hidden');
-        document.getElementById('frame-timeline').innerHTML = '';
-        
-        const formData = new FormData();
-        formData.append('file', file);
-
+    async function initConfig() {
         try {
-            const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-                method: 'POST',
-                body: formData
-            });
-            
-            if (!response.ok) {
-                const errData = await response.json().catch(()=>({}));
-                throw new Error(errData.detail || `HTTP Error ${response.status}`);
-            }
-            
-            const data = await response.json();
-            
-            // Display Results
-            dropzoneText.textContent = `Complete: ${file.name}`;
-            statusText.textContent = "Analysis Complete";
-            
-            verdictText.textContent = data.label.toUpperCase();
-            if (data.label.toLowerCase() === 'fake') {
-                verdictText.classList.replace('text-primary', 'text-[red]');
-                verdictBar.classList.replace('bg-primary', 'bg-[red]');
-            } else {
-                verdictText.classList.replace('text-[red]', 'text-primary');
-                verdictBar.classList.replace('bg-[red]', 'bg-primary');
-            }
-            
-            const conf = Math.round(data.confidence * 100);
-            verdictBar.style.width = `${conf}%`;
-            confidenceText.textContent = `${conf}%`;
-            speedText.textContent = `${data.processing_ms} ms`;
-            
-            if (data.gradcam_image) {
-                document.getElementById('gradcam-container').classList.remove('hidden');
-                document.getElementById('gradcam-img').src = data.gradcam_image;
-            }
-            if (data.frame_predictions) {
-                document.getElementById('frame-timeline-container').classList.remove('hidden');
-                const timeline = document.getElementById('frame-timeline');
-                data.frame_predictions.forEach(frame => {
-                    const el = document.createElement('div');
-                    el.className = `flex-shrink-0 w-8 h-8 rounded-sm tooltip ${frame.label.toLowerCase() === 'fake' ? 'bg-[red]' : 'bg-primary'}`;
-                    el.title = `Frame ${frame.frame_idx}: ${Math.round(frame.prob_fake*100)}% fake`;
-                    timeline.appendChild(el);
-                });
-            }
-            
-        } catch (error) {
-            console.error(error);
-            dropzoneText.textContent = "Analysis Failed. Click to retry.";
-            statusText.textContent = "Error: " + error.message;
-            verdictText.textContent = "ERROR";
-            verdictBar.style.width = '0%';
+            const cfg = await fetch('/api/config').then(r => r.json());
+            API_BASE_URL = cfg.api_base_url || '';
+        } catch (_) {
+            API_BASE_URL = '';
         }
-        uploadInput.value = ''; // Reset
+    }
+    
+    initConfig().then(() => {
+        // Check Health
+        fetch(`${API_BASE_URL}/api/health`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.model_loaded) {
+                    statusText.textContent = "System Ready - Model Loaded";
+                } else {
+                    statusText.textContent = "Warning: Model Not Loaded";
+                    document.getElementById('status-indicator').classList.replace('bg-primary', 'bg-[red]');
+                }
+            })
+            .catch(err => {
+                statusText.textContent = "Backend Offline";
+                document.getElementById('status-indicator').classList.replace('bg-primary', 'bg-[red]');
+            });
+
+        uploadInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            dropzoneText.textContent = `Analyzing ${file.name}...`;
+            statusText.textContent = "Processing...";
+            verdictText.textContent = "Analyzing...";
+            verdictBar.style.width = '50%';
+            confidenceText.textContent = '--%';
+
+            const isVideo = file.type.startsWith('video');
+            const endpoint = isVideo ? '/api/predict/video' : '/api/predict/image';
+            
+            document.getElementById('diagnostics-cluster').classList.remove('hidden');
+            document.getElementById('gradcam-container').classList.add('hidden');
+            document.getElementById('frame-timeline-container').classList.add('hidden');
+            document.getElementById('frame-timeline').innerHTML = '';
+            
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    const errData = await response.json().catch(()=>({}));
+                    throw new Error(errData.detail || `HTTP Error ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                // Display Results
+                dropzoneText.textContent = `Complete: ${file.name}`;
+                statusText.textContent = "Analysis Complete";
+                
+                verdictText.textContent = data.label.toUpperCase();
+                if (data.label.toLowerCase() === 'fake') {
+                    verdictText.classList.replace('text-primary', 'text-[red]');
+                    verdictBar.classList.replace('bg-primary', 'bg-[red]');
+                } else {
+                    verdictText.classList.replace('text-[red]', 'text-primary');
+                    verdictBar.classList.replace('bg-[red]', 'bg-primary');
+                }
+                
+                const conf = Math.round(data.confidence * 100);
+                verdictBar.style.width = `${conf}%`;
+                confidenceText.textContent = `${conf}%`;
+                speedText.textContent = `${data.processing_ms} ms`;
+                
+                if (data.gradcam_image) {
+                    document.getElementById('gradcam-container').classList.remove('hidden');
+                    document.getElementById('gradcam-img').src = data.gradcam_image;
+                }
+                if (data.frame_predictions) {
+                    document.getElementById('frame-timeline-container').classList.remove('hidden');
+                    const timeline = document.getElementById('frame-timeline');
+                    data.frame_predictions.forEach(frame => {
+                        const el = document.createElement('div');
+                        el.className = `flex-shrink-0 w-8 h-8 rounded-sm tooltip ${frame.label.toLowerCase() === 'fake' ? 'bg-[red]' : 'bg-primary'}`;
+                        el.title = `Frame ${frame.frame_idx}: ${Math.round(frame.prob_fake*100)}% fake`;
+                        timeline.appendChild(el);
+                    });
+                }
+                
+            } catch (error) {
+                console.error(error);
+                dropzoneText.textContent = "Analysis Failed. Click to retry.";
+                statusText.textContent = "Error: " + error.message;
+                verdictText.textContent = "ERROR";
+                verdictBar.style.width = '0%';
+            }
+            uploadInput.value = ''; // Reset
+        });
     });
 </script>
 </body></html>

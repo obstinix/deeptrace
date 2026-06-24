@@ -97,6 +97,14 @@ async def health():
             "version": "0.1.0",
             "uptime_seconds": int(time.time() - app.state.start_time)}
 
+@app.get("/api/config")
+async def config():
+    """Returns runtime config the frontend needs, injected via env."""
+    return {
+        "api_base_url": os.getenv("PUBLIC_API_BASE_URL", ""),
+        "version": "0.1.0",
+    }
+
 
 @app.get("/api/metrics")
 async def metrics():
