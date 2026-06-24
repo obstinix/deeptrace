@@ -1,60 +1,36 @@
 """FastAPI inference server for deepfake detection."""
-from __future__ import annotations
-
-import os
-import sys
-import time
+import os, sys, time
 from contextlib import asynccontextmanager
 from pathlib import Path
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
-
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
-
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 from api.db import init_db
 from api.middleware import track_metrics
 from api.routes import model_router, predict_router, system_router
 from api.routes.model import _load_predictor
 from api.routes.predict import limiter
 
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
     app.state.predictor = _load_predictor()
-    app.state.request_count = 0
-    app.state.error_count = 0
-    app.state.total_latency_ms = 0.0
-    app.state.start_time = time.time()
     yield
 
-CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:8000").split(",")
-
 app = FastAPI(title="Deepfake Recognition API", version="0.1.0", lifespan=lifespan)
-app.state.predictor = None
-app.state.request_count = 0
-app.state.error_count = 0
-app.state.total_latency_ms = 0.0
-app.state.start_time = time.time()
-app.state.limiter = limiter
+for k, v in [("predictor", None), ("request_count", 0), ("error_count", 0), ("total_latency_ms", 0.0), ("start_time", time.time()), ("limiter", limiter)]:
+    setattr(app.state, k, v)
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
-app.add_middleware(CORSMiddleware, allow_origins=CORS_ORIGINS,
-                   allow_methods=["GET", "POST"], allow_headers=["*"])
+app.add_middleware(CORSMiddleware, allow_origins=os.getenv("CORS_ORIGINS", "http://localhost:8000").split(","), allow_methods=["GET", "POST"], allow_headers=["*"])
 app.middleware("http")(track_metrics)
-
-app.include_router(predict_router)
-app.include_router(model_router)
-app.include_router(system_router)
+for router in [predict_router, model_router, system_router]:
+    app.include_router(router)
 app.mount("/static", StaticFiles(directory="stitch_veritas_ai_detection_platform"), name="static")
 
 @app.get("/")
 def serve_frontend():
-    if not Path("index.html").exists():
-        return "index.html not found. Check deployment.", 404
-    return FileResponse("index.html")
+    return FileResponse("index.html") if Path("index.html").exists() else ("index.html not found. Check deployment.", 404)
