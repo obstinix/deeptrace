@@ -64,3 +64,6 @@ kaggle.json
 ~/.kaggle/access_token
 secrets.json
 config.local.*
+
+# Design exports
+stitch_veritas_ai_detection_platform/
