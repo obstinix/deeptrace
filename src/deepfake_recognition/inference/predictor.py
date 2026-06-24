@@ -49,9 +49,13 @@ class Predictor:
         prob_fake, prob_real = probs[1].item(), probs[0].item()
         
         # Generate Grad-CAM (using gradients necessitates requires_grad setup if model is frozen, but we will temporarily enable grad)
-        with torch.enable_grad():
-            input_tensor_grad = input_tensor.clone().requires_grad_(True)
-            gradcam_b64 = generate_gradcam_base64(self.model, input_tensor_grad, img)
+        gradcam_b64 = None
+        try:
+            with torch.enable_grad():
+                input_tensor_grad = input_tensor.clone().requires_grad_(True)
+                gradcam_b64 = generate_gradcam_base64(self.model, input_tensor_grad, img)
+        except Exception as e:
+            print(f"WARNING: GradCAM generation failed: {e}")
             
         return {"label": "fake" if prob_fake > 0.5 else "real",
                 "confidence": max(prob_real, prob_fake),

@@ -59,17 +59,29 @@ class GradCAM:
         cam = cam / (np.max(cam) + 1e-8)
         return cam
 
+def _resolve_target_layer(model):
+    """Robustly resolve the last convolutional layer for GradCAM."""
+    # ResNet path: DeepfakeResNet18 uses self.features
+    if hasattr(model, "features"):
+        features = model.features
+        last_block = features[-1]
+        if hasattr(last_block, "conv2"):
+            return last_block.conv2
+        return last_block
+
+    # EfficientNet path: DeepfakeEfficientNet uses self.backbone (timm)
+    if hasattr(model, "backbone"):
+        backbone = model.backbone
+        if hasattr(backbone, "blocks") and len(backbone.blocks) > 0:
+            return backbone.blocks[-1]
+
+    return None
+
 def generate_gradcam_base64(model, input_tensor, original_image):
     """
     Generate Grad-CAM heatmap and overlay on original image, returning base64 PNG.
     """
-    # Try to find the last conv layer based on model type
-    target_layer = None
-    if hasattr(model, 'model') and hasattr(model.model, 'layer4'): # ResNet
-        target_layer = model.model.layer4[-1].conv2
-    elif hasattr(model, 'model') and hasattr(model.model, 'blocks'): # EfficientNet
-        target_layer = model.model.blocks[-1]
-    
+    target_layer = _resolve_target_layer(model)
     if target_layer is None:
         return None
 
