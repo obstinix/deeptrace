@@ -36,6 +36,9 @@ async def predict_image(request: Request, file: UploadFile = File(...), use_tta:
             "processing_ms": round((time.time() - t0) * 1000, 1),
             "gradcam_image": r.get("gradcam_image")}
 
+import asyncio
+from functools import partial
+
 @router.post("/api/predict/video")
 @limiter.limit("5/minute")
 async def predict_video(request: Request, file: UploadFile = File(...), sample_frames: int = 16):
@@ -44,12 +47,23 @@ async def predict_video(request: Request, file: UploadFile = File(...), sample_f
     data = await file.read()
     if len(data) > MAX_VIDEO_BYTES:
         raise HTTPException(413, "Video too large. Max 100MB.")
+
     import tempfile, os
     with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmp:
-        tmp.write(data); tmp_path = tmp.name
+        tmp.write(data)
+        tmp_path = tmp.name
+
     try:
-        t0 = time.time()
-        r = request.app.state.predictor.predict_video(tmp_path, n_frames=min(sample_frames, 32))
-        return {**r, "processing_ms": round((time.time() - t0) * 1000, 1)}
+        loop = asyncio.get_event_loop()
+        t0 = asyncio.get_event_loop().time()
+        r = await loop.run_in_executor(
+            None,
+            partial(
+                request.app.state.predictor.predict_video,
+                tmp_path,
+                n_frames=min(sample_frames, 32)
+            )
+        )
+        return {**r, "processing_ms": round((loop.time() - t0) * 1000, 1)}
     finally:
         os.unlink(tmp_path)
