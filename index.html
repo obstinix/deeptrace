@@ -245,6 +245,17 @@
 <p class="font-data-sm text-data-sm text-on-surface-variant">Image / Video (Max 100MB)</p>
 </div>
 </div>
+<!-- Upload Progress (for video uploads) -->
+<div id="upload-progress-container" class="mt-md hidden recessed p-md rounded-lg flex flex-col gap-sm">
+    <div class="flex justify-between items-center">
+        <span class="font-label-caps text-label-caps text-on-surface-variant">Uploading...</span>
+        <span id="upload-pct" class="font-data-sm text-data-sm text-primary">0%</span>
+    </div>
+    <div class="h-2 w-full bg-surface-container-highest rounded-full overflow-hidden">
+        <div id="upload-progress-bar" class="h-full bg-primary w-[0%] transition-all"></div>
+    </div>
+    <button id="upload-abort-btn" class="mt-xs px-sm py-1 border border-outline-variant text-[11px] font-label-caps uppercase rounded self-end hover:bg-surface-container-highest/20 transition-all">Abort Upload</button>
+</div>
 <!-- Diagnostics Cluster -->
 <div class="grid grid-cols-2 gap-md mt-lg hidden" id="diagnostics-cluster">
 <div class="p-md recessed rounded-lg">
@@ -539,6 +550,33 @@
             `).join('');
         }
 
+        function uploadWithProgress(url, formData, onProgress) {
+            return new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', API_BASE_URL + url);
+                xhr.upload.onprogress = (e) => {
+                    if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+                };
+                xhr.onload = () => {
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        resolve(JSON.parse(xhr.responseText));
+                    } else {
+                        reject(new Error(JSON.parse(xhr.responseText)?.detail || `HTTP ${xhr.status}`));
+                    }
+                };
+                xhr.onerror = () => reject(new Error('Network error'));
+                xhr.onabort = () => reject(new Error('Upload aborted'));
+                xhr.send(formData);
+                window._currentXHR = xhr;
+            });
+        }
+
+        document.getElementById('upload-abort-btn').addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            window._currentXHR?.abort();
+        });
+
         // Check Health
         fetch(`${API_BASE_URL}/api/health`)
             .then(res => res.json())
@@ -576,18 +614,39 @@
             const formData = new FormData();
             formData.append('file', file);
 
+            const progressContainer = document.getElementById('upload-progress-container');
+            const progressBar = document.getElementById('upload-progress-bar');
+            const progressPct = document.getElementById('upload-pct');
+            
+            if (isVideo) {
+                progressContainer.classList.remove('hidden');
+                progressBar.style.width = '0%';
+                progressPct.textContent = '0%';
+            } else {
+                progressContainer.classList.add('hidden');
+            }
+
             try {
-                const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                if (!response.ok) {
-                    const errData = await response.json().catch(()=>({}));
-                    throw new Error(errData.detail || `HTTP Error ${response.status}`);
+                let data;
+                if (isVideo) {
+                    data = await uploadWithProgress(endpoint, formData, (percent) => {
+                        progressBar.style.width = `${percent}%`;
+                        progressPct.textContent = `${percent}%`;
+                    });
+                } else {
+                    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    if (!response.ok) {
+                        const errData = await response.json().catch(()=>({}));
+                        throw new Error(errData.detail || `HTTP Error ${response.status}`);
+                    }
+                    data = await response.json();
                 }
                 
-                const data = await response.json();
+                progressContainer.classList.add('hidden');
                 
                 // Display Results
                 dropzoneText.textContent = `Complete: ${file.name}`;
@@ -625,6 +684,7 @@
                 
             } catch (error) {
                 console.error(error);
+                progressContainer.classList.add('hidden');
                 dropzoneText.textContent = "Analysis Failed. Click to retry.";
                 statusText.textContent = "Error: " + error.message;
                 verdictText.textContent = "ERROR";
