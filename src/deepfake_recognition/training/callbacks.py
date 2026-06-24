@@ -1,6 +1,8 @@
 """Early stopping and model checkpointing."""
 from __future__ import annotations
 import shutil
+import json
+import subprocess
 from pathlib import Path
 import torch
 
@@ -34,6 +36,14 @@ class ModelCheckpoint:
         self.mode = mode
         self.saved: list[tuple[float, Path]] = []
 
+    def _git_commit(self) -> str:
+        try:
+            return subprocess.check_output(
+                ["git", "rev-parse", "--short", "HEAD"], text=True
+            ).strip()
+        except Exception:
+            return "unknown"
+
     def save(self, model, optimizer, epoch: int, metrics: dict):
         val = metrics.get(self.monitor, 0)
         fname = self.dir / f"epoch_{epoch:03d}_{self.monitor}{val:.4f}.pth"
@@ -43,6 +53,16 @@ class ModelCheckpoint:
             "optimizer_state_dict": optimizer.state_dict(),
             "metrics": metrics,
         }, fname)
+
+        meta = {
+            "epoch": epoch,
+            "metrics": {k: v for k, v in metrics.items() if k != "confusion_matrix"},
+            "git_commit": self._git_commit(),
+            "timestamp": __import__("datetime").datetime.utcnow().isoformat(),
+        }
+        meta_path = fname.with_suffix(".json")
+        with open(meta_path, "w") as f:
+            json.dump(meta, f, indent=2)
 
         self.saved.append((val, fname))
         self.saved.sort(key=lambda x: x[0], reverse=(self.mode == "max"))
@@ -58,5 +78,8 @@ class ModelCheckpoint:
             _, old = self.saved.pop()
             if old.exists():
                 old.unlink()
+            old_json = old.with_suffix(".json")
+            if old_json.exists():
+                old_json.unlink()
 
         return fname
