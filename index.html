@@ -72,6 +72,12 @@
         }
     </script>
 <style>
+        html {
+            scroll-behavior: smooth;
+        }
+        .scroll-mt-24 {
+            scroll-margin-top: 96px;
+        }
         :root {
             /* Dark Theme (Nocturne Tactile) Defaults */
             --primary: #ffffff;
@@ -155,17 +161,19 @@
         }
         .shimmer-effect {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 50%;
+            top: 0; left: -100%;
+            width: 60%;
             height: 100%;
-            background: linear-gradient(to right, transparent, rgba(255,255,255,0.1), transparent);
-            transform: skewX(-20deg);
-            animation: forensic-shimmer 4s infinite linear;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+            animation: shimmer 2.5s infinite;
             pointer-events: none;
         }
+        @keyframes shimmer {
+            0% { left: -100%; }
+            100% { left: 200%; }
+        }
         .light .shimmer-effect {
-            background: linear-gradient(to right, transparent, rgba(0,0,0,0.05), transparent);
+            background: linear-gradient(90deg, transparent, rgba(0,0,0,0.08), transparent);
         }
 
         .nav-link-active {
@@ -189,10 +197,10 @@
 <nav class="fixed top-0 left-0 right-0 z-50 flex items-center justify-between gap-xl rounded-full mt-4 mx-auto max-w-[1200px] px-6 py-2 bg-surface-container-high/80 border border-outline-variant/30 backdrop-blur-xl shadow-xl">
 <div class="font-headline-md text-headline-md brand-text tracking-tighter text-primary">DeepTrace</div>
 <div class="hidden md:flex items-center gap-sm">
-<a class="px-md py-1.5 font-body-md text-body-md text-primary rounded-full nav-link-active transition-all duration-200" href="#">Intelligence</a>
-<a class="px-md py-1.5 font-body-md text-body-md text-on-surface-variant hover:text-primary rounded-full transition-all duration-200" href="#">Detection Lab</a>
-<a class="px-md py-1.5 font-body-md text-body-md text-on-surface-variant hover:text-primary rounded-full transition-all duration-200" href="#">Models</a>
-<a class="px-md py-1.5 font-body-md text-body-md text-on-surface-variant hover:text-primary rounded-full transition-all duration-200" href="#">Performance</a>
+<a class="px-md py-1.5 font-body-md text-body-md text-primary rounded-full nav-link-active transition-all duration-200" href="#section-intelligence">Intelligence</a>
+<a class="px-md py-1.5 font-body-md text-body-md text-on-surface-variant hover:text-primary rounded-full transition-all duration-200" href="#section-detection-lab">Detection Lab</a>
+<a class="px-md py-1.5 font-body-md text-body-md text-on-surface-variant hover:text-primary rounded-full transition-all duration-200" href="#section-models">Models</a>
+<a class="px-md py-1.5 font-body-md text-body-md text-on-surface-variant hover:text-primary rounded-full transition-all duration-200" href="#section-performance">Performance</a>
 </div>
 <div class="flex items-center gap-md">
 <!-- GitHub Button (Nav) -->
@@ -206,7 +214,7 @@
 <span class="material-symbols-outlined text-[20px] text-primary hidden dark:block" id="theme-icon-dark">dark_mode</span>
 <span class="material-symbols-outlined text-[20px] text-primary block dark:hidden" id="theme-icon-light">light_mode</span>
 </button>
-<button class="bg-primary text-on-primary px-lg py-sm rounded-full font-label-caps text-label-caps tactile-button elevated uppercase tracking-widest active:scale-95 transition-transform relative overflow-hidden hover:brightness-110">
+<button class="bg-primary text-on-primary px-lg py-sm rounded-full font-label-caps text-label-caps tactile-button elevated uppercase tracking-widest active:scale-95 transition-transform relative overflow-hidden hover:brightness-110" onclick="document.getElementById('section-detection-lab').scrollIntoView({behavior:'smooth'})">
 <div class="shimmer-effect"></div>
             Secure Access
         </button>
@@ -214,7 +222,7 @@
 </nav>
 <main class="pt-[140px] pb-xl px-margin-mobile md:px-margin-desktop max-w-[1440px] mx-auto">
 <!-- Hero Section -->
-<section class="grid grid-cols-12 gap-gutter items-center mb-xl">
+<section id="section-intelligence" class="grid grid-cols-12 gap-gutter items-center mb-xl scroll-mt-24">
 <div class="col-span-12 lg:col-span-6 space-y-md">
 <span class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-[0.25em] border-l-2 border-primary pl-md">Forensic Analysis Protocol 8.2</span>
 <h1 class="font-display text-[64px] lg:text-[80px] leading-[0.9] text-primary tracking-tighter">Detect Reality.<br/>Expose Deepfakes.</h1>
@@ -225,13 +233,13 @@
                 DeepTrace is an AI-powered deepfake recognition platform designed to detect manipulated media with advanced neural analysis and real-time verification.
             </p>
 <div class="flex flex-wrap gap-md pt-md">
-<button class="px-xl py-md bg-primary text-on-primary font-label-caps text-label-caps elevated tactile-button rounded-lg hover:brightness-110 uppercase tracking-widest">Initialize Scan</button>
-<button class="px-xl py-md border border-outline-variant text-on-surface font-label-caps text-label-caps tactile-button rounded-lg hover:bg-surface-container-highest/10 uppercase tracking-widest">View Whitepaper</button>
+<button class="px-xl py-md bg-primary text-on-primary font-label-caps text-label-caps elevated tactile-button rounded-lg hover:brightness-110 uppercase tracking-widest" onclick="document.getElementById('section-detection-lab').scrollIntoView({behavior:'smooth'}); setTimeout(()=>document.getElementById('media-upload').click(), 600)">Initialize Scan</button>
+<button class="px-xl py-md border border-outline-variant text-on-surface font-label-caps text-label-caps tactile-button rounded-lg hover:bg-surface-container-highest/10 uppercase tracking-widest" onclick="window.open('https://github.com/obstinix/deeptrace/blob/main/README.md','_blank','noopener')">View Whitepaper</button>
 </div>
 </div>
 <!-- Forensic Upload Card -->
 <div class="col-span-12 lg:col-span-6 mt-lg lg:mt-0">
-<div class="elevated bg-surface-container-low p-lg rounded-xl relative overflow-hidden">
+<div id="upload-card" class="elevated bg-surface-container-low p-lg rounded-xl relative overflow-hidden">
 <div class="flex justify-between items-center mb-lg">
 <span class="font-label-caps text-label-caps text-primary">Forensic Upload</span>
 <span class="font-data-sm text-data-sm text-on-surface-variant px-sm py-xs recessed border border-outline-variant/20 rounded">ID: 992-04-X</span>
@@ -304,7 +312,7 @@
 </section>
 
 <!-- Live Detection Feed -->
-<section class="mb-xl">
+<section id="section-detection-lab" class="mb-xl scroll-mt-24">
 <h2 class="font-label-caps text-label-caps text-on-surface-variant mb-lg tracking-[0.3em] uppercase border-b border-outline-variant/10 pb-2">Real-Time Threat Vector Feed</h2>
 <div class="grid grid-cols-1 md:grid-cols-3 gap-gutter">
 <!-- Card 1 -->
@@ -343,7 +351,7 @@
 </div>
 </section>
 <!-- The Intelligence Stack (Bento) -->
-<section class="mb-xl">
+<section id="section-models" class="mb-xl scroll-mt-24">
 <h2 class="font-label-caps text-label-caps text-on-surface-variant mb-lg tracking-[0.3em] uppercase border-b border-outline-variant/10 pb-2">Intelligence Stack Architecture</h2>
 <div class="grid grid-cols-1 md:grid-cols-12 gap-gutter">
 <!-- Main Bento Tile -->
@@ -406,6 +414,7 @@
 </div>
 </div>
 </section>
+<div id="section-performance" class="scroll-mt-24"></div>
 <!-- Integration Section -->
 <section class="elevated bg-surface-container-high p-xl rounded-xl text-center relative overflow-hidden">
 <div class="absolute inset-0 opacity-[0.03] pointer-events-none" style="background-image: radial-gradient(circle at 2px 2px, var(--primary) 1px, transparent 0); background-size: 24px 24px;"></div>
@@ -413,8 +422,8 @@
 <h2 class="font-headline-lg text-[40px] md:text-[56px] text-primary tracking-tighter leading-none">Integrate Forensic Intelligence</h2>
 <p class="font-body-lg text-body-lg text-on-surface-variant max-w-3xl mx-auto">Scale your verification capabilities with our enterprise API. Seamlessly connect DeepTrace into your existing content moderation, legal discovery, or security workflows.</p>
 <div class="flex flex-col sm:flex-row items-center justify-center gap-md pt-lg">
-<button class="px-xl py-md bg-primary text-on-primary font-label-caps text-label-caps elevated tactile-button rounded-lg w-full sm:w-auto uppercase tracking-widest hover:brightness-110 active:scale-95 transition-transform">Get API Key</button>
-<button class="px-xl py-md border border-outline-variant text-primary font-label-caps text-label-caps tactile-button rounded-lg w-full sm:w-auto uppercase tracking-widest bg-transparent hover:bg-surface-container-highest/20 active:scale-95 transition-transform">Request Demo Access</button>
+<button class="px-xl py-md bg-primary text-on-primary font-label-caps text-label-caps elevated tactile-button rounded-lg w-full sm:w-auto uppercase tracking-widest hover:brightness-110 active:scale-95 transition-transform" onclick="window.open('https://github.com/obstinix/deeptrace#api-reference','_blank','noopener')">Get API Key</button>
+<button class="px-xl py-md border border-outline-variant text-primary font-label-caps text-label-caps tactile-button rounded-lg w-full sm:w-auto uppercase tracking-widest bg-transparent hover:bg-surface-container-highest/20 active:scale-95 transition-transform" onclick="window.open('https://github.com/obstinix/deeptrace/issues/new?title=Demo+Access+Request&labels=demo','_blank','noopener')">Request Demo Access</button>
 </div>
 </div>
 </section>
@@ -427,9 +436,9 @@
 <div class="font-data-sm text-data-sm text-on-surface-variant opacity-80 uppercase tracking-widest">© 2024 Forensic Labs</div>
 </div>
 <div class="flex flex-wrap items-center justify-center gap-lg">
-<a class="font-data-sm text-data-sm text-on-surface-variant hover:text-primary transition-all uppercase tracking-widest" href="#">System Status</a>
-<a class="font-data-sm text-data-sm text-on-surface-variant hover:text-primary transition-all uppercase tracking-widest" href="#">Documentation</a>
-<a class="font-data-sm text-data-sm text-on-surface-variant hover:text-primary transition-all uppercase tracking-widest" href="#">API Reference</a>
+<a class="font-data-sm text-data-sm text-on-surface-variant hover:text-primary transition-all uppercase tracking-widest" href="https://github.com/obstinix/deeptrace#features" target="_blank" rel="noopener">System Status</a>
+<a class="font-data-sm text-data-sm text-on-surface-variant hover:text-primary transition-all uppercase tracking-widest" href="https://github.com/obstinix/deeptrace#quick-start" target="_blank" rel="noopener">Documentation</a>
+<a class="font-data-sm text-data-sm text-on-surface-variant hover:text-primary transition-all uppercase tracking-widest" href="https://github.com/obstinix/deeptrace#api-reference" target="_blank" rel="noopener">API Reference</a>
 <a class="flex items-center gap-3 px-4 py-2 rounded-full elevated bg-surface-container text-on-surface-variant hover:text-primary hover:bg-surface-container-high transition-all group border border-outline-variant/20" href="https://github.com/obstinix" rel="noopener noreferrer" target="_blank" title="GitHub">
 <svg class="w-4 h-4 fill-current transition-all group-hover:scale-110" viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
 <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"></path>
@@ -496,17 +505,33 @@
         }, 800);
     }
 
-    // Active Link Simulation
-    document.querySelectorAll('nav a').forEach(link => {
-        link.addEventListener('click', (e) => {
-            if (link.getAttribute('href') === '#') {
-                e.preventDefault();
-                document.querySelectorAll('nav a').forEach(l => l.classList.remove('nav-link-active', 'text-primary'));
-                document.querySelectorAll('nav a').forEach(l => l.classList.add('text-on-surface-variant'));
-                link.classList.add('nav-link-active', 'text-primary');
-                link.classList.remove('text-on-surface-variant');
+    // Scroll-based nav active state
+    const sections = [
+        { id: 'section-intelligence', navText: 'Intelligence' },
+        { id: 'section-detection-lab', navText: 'Detection Lab' },
+        { id: 'section-models', navText: 'Models' },
+        { id: 'section-performance', navText: 'Performance' },
+    ];
+
+    const navLinks = document.querySelectorAll('nav a[href^="#section-"]');
+
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const activeId = entry.target.id;
+                navLinks.forEach(link => {
+                    const matches = link.getAttribute('href') === '#' + activeId;
+                    link.classList.toggle('nav-link-active', matches);
+                    link.classList.toggle('text-primary', matches);
+                    link.classList.toggle('text-on-surface-variant', !matches);
+                });
             }
         });
+    }, { threshold: 0.3, rootMargin: '-96px 0px 0px 0px' });
+
+    sections.forEach(({ id }) => {
+        const el = document.getElementById(id);
+        if (el) observer.observe(el);
     });
     // API Wiring
     let API_BASE_URL = '';
