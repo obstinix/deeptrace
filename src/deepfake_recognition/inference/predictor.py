@@ -29,6 +29,10 @@ class Predictor:
             from deepfake_recognition.models.efficientnet import DeepfakeEfficientNet
             model = DeepfakeEfficientNet(pretrained=False, freeze_backbone=False)
             img_size = 300
+        elif "vit" in path_str:
+            from deepfake_recognition.models.vit import DeepfakeViT
+            model = DeepfakeViT(pretrained=False, freeze_backbone=False)
+            img_size = 224
         else:
             from deepfake_recognition.models.resnet import DeepfakeResNet18
             model = DeepfakeResNet18(pretrained=False, freeze_backbone=False)
