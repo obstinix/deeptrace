@@ -14,7 +14,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from api.routes.model import _load_predictor
 from api.routes import predict_router, model_router, system_router
+from api.routes.predict import limiter
 from api.middleware import track_metrics
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -28,6 +31,8 @@ async def lifespan(app: FastAPI):
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:8000").split(",")
 
 app = FastAPI(title="Deepfake Recognition API", version="0.1.0", lifespan=lifespan)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(CORSMiddleware, allow_origins=CORS_ORIGINS,
                    allow_methods=["GET", "POST"], allow_headers=["*"])
 app.middleware("http")(track_metrics)

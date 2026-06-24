@@ -3,6 +3,10 @@ import io
 import time
 from fastapi import APIRouter, File, UploadFile, HTTPException, Request
 
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+
+limiter = Limiter(key_func=get_remote_address)
 router = APIRouter()
 
 ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
@@ -10,6 +14,7 @@ MAX_IMAGE_BYTES = 10 * 1024 * 1024
 MAX_VIDEO_BYTES = 100 * 1024 * 1024
 
 @router.post("/api/predict/image")
+@limiter.limit("30/minute")
 async def predict_image(request: Request, file: UploadFile = File(...), use_tta: bool = False):
     if request.app.state.predictor is None:
         raise HTTPException(503, "No model loaded. Run training/train.py first.")
@@ -32,6 +37,7 @@ async def predict_image(request: Request, file: UploadFile = File(...), use_tta:
             "gradcam_image": r.get("gradcam_image")}
 
 @router.post("/api/predict/video")
+@limiter.limit("5/minute")
 async def predict_video(request: Request, file: UploadFile = File(...), sample_frames: int = 16):
     if request.app.state.predictor is None:
         raise HTTPException(503, "No model loaded.")
