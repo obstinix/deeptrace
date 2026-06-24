@@ -53,9 +53,15 @@ async def lifespan(app: FastAPI):
     yield
 
 
+CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:8000").split(",")
+
 app = FastAPI(title="Deepfake Recognition API", version="0.1.0", lifespan=lifespan)
-app.add_middleware(CORSMiddleware, allow_origins=["*"],
-                   allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=CORS_ORIGINS,
+    allow_methods=["GET", "POST"],
+    allow_headers=["*"],
+)
 
 app.mount("/static", StaticFiles(directory="stitch_veritas_ai_detection_platform"), name="static")
 

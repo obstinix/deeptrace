@@ -6,6 +6,7 @@ services:
       - "8000:8000"
     environment:
       - PYTHONPATH=/app/src
+      - CORS_ORIGINS=https://yourdomain.com
     volumes:
       - ./checkpoints:/app/checkpoints:ro
     restart: unless-stopped
