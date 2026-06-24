@@ -82,7 +82,10 @@ class Predictor:
         cap.release()
         if not preds:
             return {"label": "unknown", "confidence": 0.0, "frames_analyzed": 0}
-        avg_fake = sum(p["prob_fake"] for p in preds) / len(preds)
+        # Confidence-weighted aggregation
+        weights = [p["prob_fake"] if p["prob_fake"] > 0.5 else (1 - p["prob_fake"]) for p in preds]
+        total_w = sum(weights) or 1.0
+        avg_fake = sum(p["prob_fake"] * w for p, w in zip(preds, weights)) / total_w
         return {"label": "fake" if avg_fake > 0.5 else "real",
                 "confidence": round(max(avg_fake, 1 - avg_fake), 4),
                 "frames_analyzed": len(preds), "frame_predictions": preds}
