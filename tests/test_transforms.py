@@ -1,6 +1,9 @@
+import sys
+
+sys.path.insert(0, "src")
 import torch
 from PIL import Image
-import sys; sys.path.insert(0, "src")
+
 
 def test_val_shape():
     from deepfake_recognition.data.transforms import get_val_transforms
