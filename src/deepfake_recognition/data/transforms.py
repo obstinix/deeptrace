@@ -28,10 +28,28 @@ def get_val_transforms(img_size: int = 224) -> T.Compose:
 
 
 def get_tta_transforms(img_size: int = 224) -> list[T.Compose]:
-    """5 deterministic TTA augmentations for inference."""
-    base = [T.Resize(int(img_size * 1.14)), T.CenterCrop(img_size), T.ToTensor(),
-            T.Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD)]
-    flipped = [T.Resize(int(img_size * 1.14)), T.CenterCrop(img_size),
-               T.RandomHorizontalFlip(p=1.0), T.ToTensor(),
-               T.Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD)]
-    return [T.Compose(base), T.Compose(flipped)]
+    """8 deterministic TTA augmentations covering flip, crop, and brightness."""
+    resize = T.Resize(int(img_size * 1.14))
+    norm = T.Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD)
+
+    def base(crop, flip=False, bright=1.0):
+        ops = [resize, crop]
+        if flip:
+            ops.append(T.RandomHorizontalFlip(p=1.0))
+        if bright != 1.0:
+            ops.append(T.ColorJitter(brightness=(bright, bright)))
+        ops += [T.ToTensor(), norm]
+        return T.Compose(ops)
+
+    center = T.CenterCrop(img_size)
+
+    return [
+        base(center),
+        base(center, flip=True),
+        base(center, bright=0.85),
+        base(center, bright=1.15),
+        base(T.RandomCrop(img_size, padding=int(img_size * 0.05))),
+        base(T.RandomCrop(img_size, padding=int(img_size * 0.05)), flip=True),
+        base(T.RandomResizedCrop(img_size, scale=(0.85, 1.0))),
+        base(T.RandomResizedCrop(img_size, scale=(0.85, 1.0)), flip=True),
+    ]
