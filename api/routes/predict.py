@@ -1,8 +1,12 @@
 from __future__ import annotations
+
 import io
 import time
-from fastapi import APIRouter, File, UploadFile, HTTPException, Request
 
+import asyncio
+from functools import partial
+
+from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
@@ -27,7 +31,7 @@ async def predict_image(request: Request, file: UploadFile = File(...), use_tta:
         from PIL import Image
         img = Image.open(io.BytesIO(data)).convert("RGB")
     except Exception as e:
-        raise HTTPException(422, f"Cannot decode image: {e}")
+        raise HTTPException(422, f"Cannot decode image: {e}") from e
     t0 = time.time()
     r = request.app.state.predictor.predict_pil(img, use_tta=use_tta)
     return {"label": r["label"], "confidence": round(r["confidence"], 4),
@@ -36,8 +40,6 @@ async def predict_image(request: Request, file: UploadFile = File(...), use_tta:
             "processing_ms": round((time.time() - t0) * 1000, 1),
             "gradcam_image": r.get("gradcam_image")}
 
-import asyncio
-from functools import partial
 
 @router.post("/api/predict/video")
 @limiter.limit("5/minute")
@@ -48,7 +50,8 @@ async def predict_video(request: Request, file: UploadFile = File(...), sample_f
     if len(data) > MAX_VIDEO_BYTES:
         raise HTTPException(413, "Video too large. Max 100MB.")
 
-    import tempfile, os
+    import os
+    import tempfile
     with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmp:
         tmp.write(data)
         tmp_path = tmp.name
