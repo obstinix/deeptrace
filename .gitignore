@@ -4,66 +4,31 @@ __pycache__/
 *.egg-info/
 dist/
 build/
-*.egg
+.venv/
+venv/
 
-# ML model weights
-*.pt
-*.ckpt
-*.safetensors
+# Data and checkpoints
+checkpoints/
+data/
+*.pth
+*.pth.tar
 
-# Environment
+# Dataset cache
+.dataset_cache.pkl
+.dataset_manifest.json
+
+# Metrics DB
+deeptrace_metrics.db
+*.db
+
+# Design exports
+stitch_veritas_ai_detection_platform/
+
+# Env
 .env
 .env.*
 !.env.example
 
-# Data & media
-*.zip
-*.mp4
-*.avi
-*.mov
-/data/
-/datasets/
-
-# Experiment tracking
-wandb/
-mlruns/
-runs/
-logs/
-checkpoints/
-
 # OS
 .DS_Store
 Thumbs.db
-
-# Node
-node_modules/
-*.js.map
-runtime-*.js
-*.bundle.js
-
-# Test / coverage
-.pytest_cache/
-htmlcov/
-.coverage
-coverage.xml
-
-# IDE
-.vscode/
-.idea/
-
-# Agent state is tracked on purpose (do not ignore)
-# AGENT_STATE.json
-
-# Local agent working dirs
-.agent/
-
-# Security exclusions
-*.pem
-*.key
-kaggle.json
-~/.kaggle/access_token
-secrets.json
-config.local.*
-
-# Design exports
-stitch_veritas_ai_detection_platform/
