@@ -16,11 +16,13 @@ from api.routes.model import _load_predictor
 from api.routes import predict_router, model_router, system_router
 from api.routes.predict import limiter
 from api.middleware import track_metrics
+from api.db import init_db
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    init_db()
     app.state.predictor = _load_predictor()
     app.state.request_count = 0
     app.state.error_count = 0

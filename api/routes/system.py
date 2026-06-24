@@ -5,6 +5,8 @@ from fastapi import APIRouter, Request
 
 router = APIRouter()
 
+from api.db import get_all
+
 @router.get("/api/health")
 async def health(request: Request):
     return {"status": "ok", "model_loaded": request.app.state.predictor is not None,
@@ -12,10 +14,13 @@ async def health(request: Request):
             "uptime_seconds": int(time.time() - request.app.state.start_time)}
 
 @router.get("/api/metrics")
-async def metrics(request: Request):
-    n = request.app.state.request_count
-    return {"total_requests": n, "error_requests": request.app.state.error_count,
-            "avg_latency_ms": round(request.app.state.total_latency_ms / max(n, 1), 1)}
+async def metrics():
+    m = get_all()
+    n = int(m.get("total_requests", 0))
+    errors = int(m.get("error_requests", 0))
+    latency = m.get("total_latency_ms", 0.0)
+    return {"total_requests": n, "error_requests": errors,
+            "avg_latency_ms": round(latency / max(n, 1), 1)}
 
 @router.get("/api/config")
 async def config():
