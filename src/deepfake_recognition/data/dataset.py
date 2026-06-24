@@ -18,6 +18,7 @@ import torch
 from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms as T
+from deepfake_recognition.data.splitter import stratified_split
 
 
 LABEL_MAP = {"real": 0, "fake": 1}
@@ -47,27 +48,10 @@ class DeepfakeDataset(Dataset):
 
         samples = self._load_or_scan()
 
-        # Stratified split
-        real = [s for s in samples if s[1] == 0]
-        fake = [s for s in samples if s[1] == 1]
-        rng = random.Random(seed)
-        rng.shuffle(real)
-        rng.shuffle(fake)
-
-        def split_class(items):
-            n = len(items)
-            n_test = int(n * test_ratio)
-            n_val = int(n * val_ratio)
-            return {
-                "train": items[n_test + n_val :],
-                "val":   items[n_test : n_test + n_val],
-                "test":  items[:n_test],
-            }
-
-        real_splits = split_class(real)
-        fake_splits = split_class(fake)
-        self.samples = real_splits[split] + fake_splits[split]
-        rng.shuffle(self.samples)
+        splits = stratified_split(
+            samples, val_ratio=val_ratio, test_ratio=test_ratio, seed=seed
+        )
+        self.samples = splits[split]
 
         if max_samples:
             self.samples = self.samples[:max_samples]
