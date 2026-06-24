@@ -1,7 +1,8 @@
 """Minimal SQLite-backed metrics store."""
 from __future__ import annotations
-import sqlite3
+
 import os
+import sqlite3
 from pathlib import Path
 
 DB_PATH = Path(os.getenv("METRICS_DB_PATH", "/tmp/deeptrace_metrics.db"))
@@ -31,3 +32,6 @@ def get_all() -> dict:
     with sqlite3.connect(DB_PATH) as conn:
         rows = conn.execute("SELECT key, value FROM metrics").fetchall()
     return {row[0]: row[1] for row in rows}
+
+# Initialize database on import
+init_db()
