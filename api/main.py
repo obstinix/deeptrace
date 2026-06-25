@@ -41,5 +41,6 @@ def serve_frontend():
 
 
 @app.get("/webhooks", response_class=FileResponse)
+@app.get("/webhooks.html", response_class=FileResponse)
 async def docs():
     return FileResponse("webhooks.html")
