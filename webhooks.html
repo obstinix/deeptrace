@@ -1,0 +1,1281 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary": "var(--primary)",
+                        "on-primary": "var(--on-primary)",
+                        "surface": "var(--surface)",
+                        "on-surface": "var(--on-surface)",
+                        "surface-variant": "var(--surface-variant)",
+                        "on-surface-variant": "var(--on-surface-variant)",
+                        "outline": "var(--outline)",
+                        "outline-variant": "var(--outline-variant)",
+                        "surface-container-lowest": "var(--surface-container-lowest)",
+                        "surface-container-low": "var(--surface-container-low)",
+                        "surface-container": "var(--surface-container)",
+                        "surface-container-high": "var(--surface-container-high)",
+                        "surface-container-highest": "var(--surface-container-highest)",
+                        "inverse-surface": "var(--inverse-surface)",
+                        "inverse-on-surface": "var(--inverse-on-surface)",
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "var(--radius-lg)",
+                        "xl": "var(--radius-xl)",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "sm": "8px",
+                        "md": "16px",
+                        "lg": "24px",
+                        "xs": "4px",
+                        "margin-desktop": "64px",
+                        "gutter": "24px",
+                        "unit": "4px",
+                        "xl": "48px",
+                        "margin-mobile": "16px"
+                    },
+                    "fontFamily": {
+                        "display": ["Space Grotesk"],
+                        "headline-lg-mobile": ["Space Grotesk"],
+                        "headline-md": ["Space Grotesk"],
+                        "headline-lg": ["Space Grotesk"],
+                        "data-sm": ["JetBrains Mono"],
+                        "data-lg": ["JetBrains Mono"],
+                        "body-md": ["Space Grotesk"],
+                        "body-lg": ["Space Grotesk"],
+                        "label-caps": ["JetBrains Mono"]
+                    },
+                    "fontSize": {
+                        "display": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "headline-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                        "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                        "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "data-sm": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                        "data-lg": ["16px", {"lineHeight": "24px", "fontWeight": "500"}],
+                        "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                        "label-caps": ["11px", {"lineHeight": "16px", "letterSpacing": "0.08em", "fontWeight": "700"}]
+                    }
+                },
+            },
+        }
+    </script>
+    <style>
+        html {
+            scroll-behavior: smooth;
+        }
+        .scroll-mt-24 {
+            scroll-margin-top: 96px;
+        }
+        :root {
+            /* Dark Theme (Nocturne Tactile) Defaults */
+            --primary: #ffffff;
+            --on-primary: #2f3131;
+            --surface: #131313;
+            --on-surface: #e5e2e1;
+            --surface-variant: #353534;
+            --on-surface-variant: #c4c7c8;
+            --outline: #8e9192;
+            --outline-variant: #444748;
+            --surface-container-lowest: #0e0e0e;
+            --surface-container-low: #1c1b1b;
+            --surface-container: #201f1f;
+            --surface-container-high: #2a2a2a;
+            --surface-container-highest: #353534;
+            --inverse-surface: #e5e2e1;
+            --inverse-on-surface: #313030;
+            --radius-lg: 0.25rem;
+            --radius-xl: 0.5rem;
+            --shadow-elevated: 0 12px 24px -4px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            --shadow-recessed: inset 0 4px 12px rgba(0, 0, 0, 0.5), 0 1px 0 rgba(255, 255, 255, 0.05);
+            --border-color: #2a2a2a;
+        }
+
+        .light {
+            /* Light Theme (Tactile Monochrome) */
+            --primary: #1a1c1c;
+            --on-primary: #ffffff;
+            --surface: #fbf9f9;
+            --on-surface: #1a1c1c;
+            --surface-variant: #e0e0e0;
+            --on-surface-variant: #444748;
+            --outline: #747878;
+            --outline-variant: #c4c7c8;
+            --surface-container-lowest: #ffffff;
+            --surface-container-low: #f5f3f3;
+            --surface-container: #f0eeee;
+            --surface-container-high: #ebe8e8;
+            --surface-container-highest: #e5e2e2;
+            --inverse-surface: #2f3131;
+            --inverse-on-surface: #f1f0f0;
+            --radius-lg: 0.5rem;
+            --radius-xl: 0.75rem;
+            --shadow-elevated: 0 4px 12px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+            --shadow-recessed: inset 0 2px 6px rgba(0, 0, 0, 0.05), 0 1px 0 rgba(255, 255, 255, 0.5);
+            --border-color: #e0e0e0;
+        }
+
+        .elevated {
+            box-shadow: var(--shadow-elevated);
+            border: 1px solid var(--border-color);
+        }
+        .recessed {
+            box-shadow: var(--shadow-recessed);
+            background: var(--surface-container-lowest);
+            border: 1px solid var(--border-color);
+        }
+        .tactile-button {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid var(--border-color);
+        }
+        .tactile-button:active {
+            transform: translateY(1px);
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .grain-overlay {
+            pointer-events: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: url("https://www.transparenttextures.com/patterns/carbon-fibre.png");
+            opacity: 0.03;
+            z-index: 100;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+
+        @keyframes forensic-shimmer {
+            0% { transform: translateX(-100%); }
+            20%, 100% { transform: translateX(200%); }
+        }
+        .shimmer-effect {
+            position: absolute;
+            top: 0; left: -100%;
+            width: 60%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+            animation: shimmer 2.5s infinite;
+            pointer-events: none;
+        }
+        @keyframes shimmer {
+            0% { left: -100%; }
+            100% { left: 200%; }
+        }
+        .light .shimmer-effect {
+            background: linear-gradient(90deg, transparent, rgba(0,0,0,0.08), transparent);
+        }
+
+        .nav-link-active {
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+            background: rgba(255, 255, 255, 0.1);
+        }
+        .light .nav-link-active {
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
+            background: rgba(0,0,0,0.05);
+        }
+
+        .brand-text {
+            letter-spacing: -0.03em;
+            font-weight: 800;
+        }
+
+        /* Sidebar link active styling */
+        .sidebar-link-active {
+            border-left: 2px solid var(--primary);
+            background: var(--surface-container-high);
+            color: var(--primary) !important;
+        }
+
+        /* Collapsible accordion styling */
+        .endpoint-card .endpoint-body {
+            display: none;
+        }
+        .endpoint-card.open .endpoint-body {
+            display: block;
+        }
+        .endpoint-card .chevron-icon {
+            transition: transform 0.3s ease;
+        }
+        .endpoint-card.open .chevron-icon {
+            transform: rotate(180deg);
+        }
+
+        /* Token colors for syntax coloring */
+        .tok-key { color: var(--primary); font-weight: 600; }
+        .tok-str { color: #8e9192; }
+        .tok-num { color: #e5e2e1; }
+        .tok-bool { color: #ffffff; font-weight: bold; }
+        .tok-null { color: #8e9192; }
+        .tok-cmt { color: #444748; font-style: italic; }
+        .tok-meth { color: #ffffff; font-weight: bold; }
+        .tok-path { color: var(--primary); }
+        .tok-hdr { color: #c4c7c8; font-weight: 500; }
+
+        /* Hide scrollbars for aside navigation */
+        .scrollbar-none::-webkit-scrollbar {
+            display: none;
+        }
+        .scrollbar-none {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="bg-surface font-body-md text-on-surface antialiased transition-colors duration-300 overflow-x-hidden">
+<div class="grain-overlay"></div>
+
+<!-- Navigation Shell -->
+<nav class="fixed top-0 left-0 right-0 z-50 flex items-center justify-between gap-xl rounded-full mt-4 mx-auto max-w-[1200px] px-6 py-2 bg-surface-container-high/80 border border-outline-variant/30 backdrop-blur-xl shadow-xl">
+    <div class="font-headline-md text-headline-md brand-text tracking-tighter text-primary">DeepTrace</div>
+    <div class="hidden md:flex items-center gap-sm">
+        <a class="px-md py-1.5 font-body-md text-body-md text-on-surface-variant hover:text-primary rounded-full transition-all duration-200" href="index.html#section-intelligence">Intelligence</a>
+        <a class="px-md py-1.5 font-body-md text-body-md text-on-surface-variant hover:text-primary rounded-full transition-all duration-200" href="index.html#section-detection-lab">Detection Lab</a>
+        <a class="px-md py-1.5 font-body-md text-body-md text-on-surface-variant hover:text-primary rounded-full transition-all duration-200" href="index.html#section-models">Models</a>
+        <a class="px-md py-1.5 font-body-md text-body-md text-on-surface-variant hover:text-primary rounded-full transition-all duration-200" href="index.html#section-performance">Performance</a>
+        <a class="px-md py-1.5 font-body-md text-body-md text-primary rounded-full nav-link-active transition-all duration-200" href="#">API Docs</a>
+    </div>
+    <div class="flex items-center gap-md">
+        <!-- GitHub Button (Nav) -->
+        <a class="p-2 rounded-full elevated tactile-button bg-surface-container-highest flex items-center justify-center hover:shadow-[0_0_15px_rgba(var(--primary-rgb),0.1)] transition-all group" href="https://github.com/obstinix" rel="noopener noreferrer" target="_blank" title="GitHub Repository">
+            <svg class="w-5 h-5 fill-primary transition-transform group-hover:scale-110" viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"></path>
+            </svg>
+        </a>
+        <!-- Theme Toggle Button -->
+        <button class="p-2 rounded-full elevated tactile-button bg-surface-container-highest flex items-center justify-center hover:shadow-[0_0_15px_rgba(var(--primary-rgb),0.1)] transition-all" id="theme-toggle">
+            <span class="material-symbols-outlined text-[20px] text-primary hidden dark:block" id="theme-icon-dark">dark_mode</span>
+            <span class="material-symbols-outlined text-[20px] text-primary block dark:hidden" id="theme-icon-light">light_mode</span>
+        </button>
+        <button class="bg-primary text-on-primary px-lg py-sm rounded-full font-label-caps text-label-caps tactile-button elevated uppercase tracking-widest active:scale-95 transition-transform relative overflow-hidden hover:brightness-110" onclick="window.location.href='index.html#section-detection-lab'">
+            <div class="shimmer-effect"></div>
+            Secure Access
+        </button>
+    </div>
+</nav>
+
+<main class="pt-[140px] pb-xl px-margin-mobile md:px-margin-desktop max-w-[1440px] mx-auto">
+    <div class="grid grid-cols-12 gap-gutter items-start">
+        <!-- Sidebar Navigation -->
+        <aside class="hidden lg:block lg:col-span-3 sticky top-[96px] h-[calc(100vh-96px)] overflow-y-auto pr-md border-r border-outline-variant/20 scrollbar-none">
+            <div class="space-y-lg text-left">
+                <div>
+                    <h4 class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-widest mb-sm">Overview</h4>
+                    <ul class="space-y-xs">
+                        <li><a href="#section-overview" class="block py-1 px-md font-body-md text-body-md text-on-surface-variant hover:text-primary transition-all">Introduction</a></li>
+                        <li><a href="#section-authentication" class="block py-1 px-md font-body-md text-body-md text-on-surface-variant hover:text-primary transition-all">Authentication</a></li>
+                        <li><a href="#section-base-url" class="block py-1 px-md font-body-md text-body-md text-on-surface-variant hover:text-primary transition-all">Base URL</a></li>
+                        <li><a href="#section-errors" class="block py-1 px-md font-body-md text-body-md text-on-surface-variant hover:text-primary transition-all">Error Codes</a></li>
+                        <li><a href="#section-rate-limits" class="block py-1 px-md font-body-md text-body-md text-on-surface-variant hover:text-primary transition-all">Rate Limits</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-widest mb-sm">REST Endpoints</h4>
+                    <ul class="space-y-xs">
+                        <li><a href="#ep-health" class="block py-1 px-md font-body-md text-body-md text-on-surface-variant hover:text-primary transition-all">GET /api/health</a></li>
+                        <li><a href="#ep-predict-image" class="block py-1 px-md font-body-md text-body-md text-on-surface-variant hover:text-primary transition-all">POST /api/predict/image</a></li>
+                        <li><a href="#ep-predict-video" class="block py-1 px-md font-body-md text-body-md text-on-surface-variant hover:text-primary transition-all">POST /api/predict/video</a></li>
+                        <li><a href="#ep-model-info" class="block py-1 px-md font-body-md text-body-md text-on-surface-variant hover:text-primary transition-all">GET /api/model/info</a></li>
+                        <li><a href="#ep-model-reload" class="block py-1 px-md font-body-md text-body-md text-on-surface-variant hover:text-primary transition-all">POST /api/model/reload</a></li>
+                        <li><a href="#ep-config" class="block py-1 px-md font-body-md text-body-md text-on-surface-variant hover:text-primary transition-all">GET /api/config</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-widest mb-sm">Webhooks</h4>
+                    <ul class="space-y-xs">
+                        <li><a href="#section-webhooks" class="block py-1 px-md font-body-md text-body-md text-on-surface-variant hover:text-primary transition-all">Overview</a></li>
+                        <li><a href="#wh-register" class="block py-1 px-md font-body-md text-body-md text-on-surface-variant hover:text-primary transition-all">Registration</a></li>
+                        <li><a href="#wh-events" class="block py-1 px-md font-body-md text-body-md text-on-surface-variant hover:text-primary transition-all">Event Types</a></li>
+                        <li><a href="#wh-security" class="block py-1 px-md font-body-md text-body-md text-on-surface-variant hover:text-primary transition-all">Security</a></li>
+                        <li><a href="#wh-retry" class="block py-1 px-md font-body-md text-body-md text-on-surface-variant hover:text-primary transition-all">Retry Logic</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-widest mb-sm">SDK</h4>
+                    <ul class="space-y-xs">
+                        <li><a href="#section-sdk" class="block py-1 px-md font-body-md text-body-md text-on-surface-variant hover:text-primary transition-all">Python SDK</a></li>
+                        <li><a href="#section-sdk-node" class="block py-1 px-md font-body-md text-body-md text-on-surface-variant hover:text-primary transition-all">Node.js SDK</a></li>
+                    </ul>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <div class="col-span-12 lg:col-span-9 space-y-xl text-left pl-0 lg:pl-lg">
+            <!-- Overview -->
+            <section id="section-overview" class="scroll-mt-24 space-y-md">
+                <span class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-[0.25em] border-l-2 border-primary pl-md">Reference Protocol</span>
+                <h1 class="font-display text-[48px] lg:text-[64px] leading-[0.9] text-primary tracking-tighter">API Reference &amp; Webhooks</h1>
+                <p class="font-body-lg text-body-lg text-on-surface-variant max-w-3xl">
+                    Welcome to the DeepTrace API and integration reference documentation. Build customized content verification systems and manage synthetic media detection events programmatically.
+                </p>
+                <div class="flex flex-wrap gap-md pt-sm">
+                    <a href="#rest-header" class="px-lg py-2 bg-surface-container-high hover:bg-surface-container-highest border border-outline-variant/30 text-primary font-label-caps text-label-caps rounded-full tactile-button transition-all">REST Endpoints</a>
+                    <a href="#section-webhooks" class="px-lg py-2 bg-surface-container-high hover:bg-surface-container-highest border border-outline-variant/30 text-primary font-label-caps text-label-caps rounded-full tactile-button transition-all">Webhooks</a>
+                    <a href="#section-sdk" class="px-lg py-2 bg-surface-container-high hover:bg-surface-container-highest border border-outline-variant/30 text-primary font-label-caps text-label-caps rounded-full tactile-button transition-all">SDK References</a>
+                </div>
+                <div class="p-md bg-surface-container-low border border-outline-variant/30 rounded-lg flex items-start gap-md mt-lg">
+                    <span class="material-symbols-outlined text-[24px] text-primary">info</span>
+                    <div>
+                        <span class="font-label-caps text-label-caps text-primary uppercase font-bold tracking-widest block mb-1">Status: Model Checkpoint Pending</span>
+                        <p class="font-data-sm text-data-sm text-on-surface-variant">The core AI model checkpoint is currently training. During this period, the API will respond with HTTP 503 Service Unavailable for verification requests to ensure no false negatives or fabricated scores are delivered.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Authentication -->
+            <section id="section-authentication" class="scroll-mt-24 space-y-md">
+                <h2 class="font-headline-lg text-headline-lg text-primary">Authentication</h2>
+                <p class="font-body-md text-body-md text-on-surface-variant">
+                    In production environments, all requests to the DeepTrace API must be authenticated using a Bearer token in the <code>Authorization</code> header.
+                </p>
+                <div class="relative code-block">
+                    <button class="copy-btn absolute top-3 right-3 p-1.5 rounded bg-surface-container-highest/80 hover:bg-surface-container-highest text-on-surface-variant hover:text-primary transition-all border border-outline-variant/30 flex items-center justify-center" onclick="copyCode(this)">
+                        <span class="material-symbols-outlined text-[16px]">content_copy</span>
+                    </button>
+                    <pre class="p-md rounded bg-surface-container-lowest border border-outline-variant/20 overflow-x-auto text-data-sm font-data-sm"><span class="tok-hdr">Authorization:</span> Bearer <span class="tok-str">YOUR_DT_API_KEY</span></pre>
+                </div>
+                <p class="font-body-md text-body-md text-on-surface-variant">
+                    Note: Local development instances are unauthenticated by default. In production, authentication is enforced by setting the <code>DT_API_KEY</code> environment variable on the server.
+                </p>
+            </section>
+
+            <!-- Base URL -->
+            <section id="section-base-url" class="scroll-mt-24 space-y-md">
+                <h2 class="font-headline-lg text-headline-lg text-primary">Base URL</h2>
+                <p class="font-body-md text-body-md text-on-surface-variant">
+                    API requests are sent to the following base URLs depending on the environment:
+                </p>
+                <div class="space-y-sm">
+                    <div class="p-md bg-surface-container-low border border-outline-variant/30 rounded-lg flex justify-between items-center">
+                        <div>
+                            <span class="font-label-caps text-label-caps text-on-surface-variant">Local Development</span>
+                            <code class="block font-data-sm text-data-sm text-primary mt-1">http://localhost:8000</code>
+                        </div>
+                        <span class="px-sm py-0.5 rounded text-[11px] font-label-caps bg-surface-container-highest border border-outline-variant/20 text-primary">Active</span>
+                    </div>
+                    <div class="p-md bg-surface-container-low border border-outline-variant/30 rounded-lg flex justify-between items-center">
+                        <div>
+                            <span class="font-label-caps text-label-caps text-on-surface-variant">Production (Cloud Managed)</span>
+                            <code class="block font-data-sm text-data-sm text-on-surface-variant mt-1">https://api.deeptrace.io/v1</code>
+                        </div>
+                        <span class="px-sm py-0.5 rounded text-[11px] font-label-caps bg-surface-container-lowest border border-outline-variant/20 text-on-surface-variant">Planned</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Error Codes -->
+            <section id="section-errors" class="scroll-mt-24 space-y-md">
+                <h2 class="font-headline-lg text-headline-lg text-primary">Error Codes</h2>
+                <p class="font-body-md text-body-md text-on-surface-variant">
+                    The API uses standard HTTP response codes to indicate success or failure.
+                </p>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left font-body-md border-collapse">
+                        <thead>
+                            <tr class="border-b border-outline-variant/30">
+                                <th class="py-md pr-lg font-label-caps text-label-caps text-primary">Code</th>
+                                <th class="py-md pr-lg font-label-caps text-label-caps text-primary">Status</th>
+                                <th class="py-md font-label-caps text-label-caps text-primary">Description</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-outline-variant/10 text-on-surface-variant">
+                            <tr>
+                                <td class="py-md pr-lg font-data-sm text-data-sm text-primary">200</td>
+                                <td class="py-md pr-lg font-data-sm text-data-sm">OK</td>
+                                <td class="py-md text-body-md">Request completed successfully.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-md pr-lg font-data-sm text-data-sm text-primary">400</td>
+                                <td class="py-md pr-lg font-data-sm text-data-sm">Bad Request</td>
+                                <td class="py-md text-body-md">Invalid request payload, parameters, or schema validation failure.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-md pr-lg font-data-sm text-data-sm text-primary">401</td>
+                                <td class="py-md pr-lg font-data-sm text-data-sm">Unauthorized</td>
+                                <td class="py-md text-body-md">Missing or invalid API token.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-md pr-lg font-data-sm text-data-sm text-primary">413</td>
+                                <td class="py-md pr-lg font-data-sm text-data-sm">Payload Too Large</td>
+                                <td class="py-md text-body-md">Uploaded file exceeds the maximum size limit (10MB for images, 100MB for videos).</td>
+                            </tr>
+                            <tr>
+                                <td class="py-md pr-lg font-data-sm text-data-sm text-primary">503</td>
+                                <td class="py-md pr-lg font-data-sm text-data-sm">Service Unavailable</td>
+                                <td class="py-md text-body-md">Underlying model checkpoint is not loaded. DeepTrace strictly enforces a zero-fake-outputs policy: rather than returning a mocked classification, we fail with a 503 error.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="mt-md space-y-sm">
+                    <span class="font-label-caps text-label-caps text-on-surface-variant uppercase font-bold tracking-widest block">503 Zero-Fake-Outputs Schema</span>
+                    <div class="relative code-block">
+                        <button class="copy-btn absolute top-3 right-3 p-1.5 rounded bg-surface-container-highest/80 hover:bg-surface-container-highest text-on-surface-variant hover:text-primary transition-all border border-outline-variant/30 flex items-center justify-center" onclick="copyCode(this)">
+                            <span class="material-symbols-outlined text-[16px]">content_copy</span>
+                        </button>
+                        <pre class="p-md rounded bg-surface-container-lowest border border-outline-variant/20 overflow-x-auto text-data-sm font-data-sm">{
+  <span class="tok-key">"detail"</span>: <span class="tok-str">"No model loaded. Run training/train.py first."</span>
+}</pre>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Rate Limits -->
+            <section id="section-rate-limits" class="scroll-mt-24 space-y-md">
+                <h2 class="font-headline-lg text-headline-lg text-primary">Rate Limits</h2>
+                <p class="font-body-md text-body-md text-on-surface-variant">
+                    Rate limits are applied to prevent server overload. Limits are enforced at the client IP level.
+                </p>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-gutter">
+                    <div class="p-md bg-surface-container-low border border-outline-variant/30 rounded-lg space-y-sm">
+                        <span class="font-label-caps text-label-caps text-primary uppercase tracking-widest block">Local Dev</span>
+                        <span class="font-display text-[32px] leading-none text-primary block">Unenforced</span>
+                        <p class="font-body-md text-body-md text-on-surface-variant">No rate limits applied. Enforced only in production deployments.</p>
+                    </div>
+                    <div class="p-md bg-surface-container-low border border-outline-variant/30 rounded-lg space-y-sm">
+                        <span class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-widest block">Free Tier</span>
+                        <span class="font-display text-[32px] leading-none text-on-surface-variant block">30 req/min</span>
+                        <p class="font-body-md text-body-md text-on-surface-variant">Planned for public cloud endpoints. Limits standard scan requests.</p>
+                    </div>
+                    <div class="p-md bg-surface-container-low border border-outline-variant/30 rounded-lg space-y-sm">
+                        <span class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-widest block">Enterprise</span>
+                        <span class="font-display text-[32px] leading-none text-on-surface-variant block">Unlimited</span>
+                        <p class="font-body-md text-body-md text-on-surface-variant">Planned for self-hosted instances. Scaled dynamically by deployment hardware.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- REST Endpoints -->
+            <section class="space-y-lg">
+                <h2 class="font-headline-lg text-headline-lg text-primary border-b border-outline-variant/10 pb-2 scroll-mt-24" id="rest-header">REST Endpoints</h2>
+
+                <!-- GET /api/health -->
+                <div id="ep-health" class="endpoint-card elevated bg-surface-container-low rounded-lg scroll-mt-24">
+                    <div class="endpoint-card-header p-md flex justify-between items-center cursor-pointer select-none">
+                        <div class="flex items-center gap-md">
+                            <span class="px-sm py-1 font-label-caps text-label-caps text-primary bg-surface-container border border-outline-variant/30 rounded">GET</span>
+                            <code class="font-data-sm text-data-sm text-primary font-bold">/api/health</code>
+                            <span class="text-on-surface-variant font-body-md text-body-md hidden sm:inline">— System Health Check</span>
+                        </div>
+                        <span class="material-symbols-outlined chevron-icon text-on-surface-variant">expand_more</span>
+                    </div>
+                    <div class="endpoint-body p-md border-t border-outline-variant/10 bg-surface-container-lowest/30 space-y-md">
+                        <p class="font-body-md text-body-md text-on-surface-variant">Retrieve active model loading states, application version, and uptime counters.</p>
+                        
+                        <span class="font-label-caps text-label-caps text-on-surface-variant uppercase font-bold tracking-widest block">Response Schema (200 OK)</span>
+                        <div class="relative code-block">
+                            <button class="copy-btn absolute top-3 right-3 p-1.5 rounded bg-surface-container-highest/80 hover:bg-surface-container-highest text-on-surface-variant hover:text-primary transition-all border border-outline-variant/30 flex items-center justify-center" onclick="copyCode(this)">
+                                <span class="material-symbols-outlined text-[16px]">content_copy</span>
+                            </button>
+                            <pre class="p-md rounded bg-surface-container-lowest border border-outline-variant/20 overflow-x-auto text-data-sm font-data-sm">{
+  <span class="tok-key">"status"</span>: <span class="tok-str">"ok"</span>,
+  <span class="tok-key">"model_loaded"</span>: <span class="tok-bool">true</span>,
+  <span class="tok-key">"version"</span>: <span class="tok-str">"0.1.0"</span>,
+  <span class="tok-key">"uptime_seconds"</span>: <span class="tok-num">3600</span>
+}</pre>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-md pt-sm">
+                            <div class="space-y-sm">
+                                <span class="font-label-caps text-label-caps text-on-surface-variant uppercase font-bold tracking-widest block">cURL Example</span>
+                                <div class="relative code-block">
+                                    <button class="copy-btn absolute top-3 right-3 p-1.5 rounded bg-surface-container-highest/80 hover:bg-surface-container-highest text-on-surface-variant hover:text-primary transition-all border border-outline-variant/30 flex items-center justify-center" onclick="copyCode(this)">
+                                        <span class="material-symbols-outlined text-[16px]">content_copy</span>
+                                    </button>
+                                    <pre class="p-md rounded bg-surface-container-lowest border border-outline-variant/20 overflow-x-auto text-data-sm font-data-sm">curl -X GET http://localhost:8000/api/health</pre>
+                                </div>
+                            </div>
+                            <div class="space-y-sm">
+                                <span class="font-label-caps text-label-caps text-on-surface-variant uppercase font-bold tracking-widest block">Python Example</span>
+                                <div class="relative code-block">
+                                    <button class="copy-btn absolute top-3 right-3 p-1.5 rounded bg-surface-container-highest/80 hover:bg-surface-container-highest text-on-surface-variant hover:text-primary transition-all border border-outline-variant/30 flex items-center justify-center" onclick="copyCode(this)">
+                                        <span class="material-symbols-outlined text-[16px]">content_copy</span>
+                                    </button>
+                                    <pre class="p-md rounded bg-surface-container-lowest border border-outline-variant/20 overflow-x-auto text-data-sm font-data-sm">import requests
+res = requests.get("http://localhost:8000/api/health")
+print(res.json())</pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- POST /api/predict/image -->
+                <div id="ep-predict-image" class="endpoint-card elevated bg-surface-container-low rounded-lg scroll-mt-24">
+                    <div class="endpoint-card-header p-md flex justify-between items-center cursor-pointer select-none">
+                        <div class="flex items-center gap-md">
+                            <span class="px-sm py-1 font-label-caps text-label-caps text-primary bg-surface-container-highest border border-outline-variant/30 rounded">POST</span>
+                            <code class="font-data-sm text-data-sm text-primary font-bold">/api/predict/image</code>
+                            <span class="text-on-surface-variant font-body-md text-body-md hidden sm:inline">— Scan Image</span>
+                        </div>
+                        <span class="material-symbols-outlined chevron-icon text-on-surface-variant">expand_more</span>
+                    </div>
+                    <div class="endpoint-body p-md border-t border-outline-variant/10 bg-surface-container-lowest/30 space-y-md">
+                        <p class="font-body-md text-body-md text-on-surface-variant">Process an uploaded image through our deepfake detection network to output authenticity predictions and Grad-CAM target activation heatmaps.</p>
+                        
+                        <span class="font-label-caps text-label-caps text-on-surface-variant uppercase font-bold tracking-widest block">Request Parameters</span>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left font-body-md border-collapse">
+                                <thead>
+                                    <tr class="border-b border-outline-variant/30">
+                                        <th class="py-sm pr-lg font-label-caps text-label-caps text-primary">Parameter</th>
+                                        <th class="py-sm pr-lg font-label-caps text-label-caps text-primary">Type</th>
+                                        <th class="py-sm pr-lg font-label-caps text-label-caps text-primary">Position</th>
+                                        <th class="py-sm font-label-caps text-label-caps text-primary">Description</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-outline-variant/10 text-on-surface-variant">
+                                    <tr>
+                                        <td class="py-sm pr-lg font-data-sm text-data-sm text-primary">file</td>
+                                        <td class="py-sm pr-lg font-data-sm text-data-sm">Binary</td>
+                                        <td class="py-sm pr-lg font-data-sm text-data-sm">multipart/form-data</td>
+                                        <td class="py-sm text-body-md">Required. The image file (jpg/png/webp, max 10MB).</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="py-sm pr-lg font-data-sm text-data-sm text-primary">use_tta</td>
+                                        <td class="py-sm pr-lg font-data-sm text-data-sm">Boolean</td>
+                                        <td class="py-sm pr-lg font-data-sm text-data-sm">Query</td>
+                                        <td class="py-sm text-body-md">Optional. Run 8-variant test-time augmentation (default: false).</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <span class="font-label-caps text-label-caps text-on-surface-variant uppercase font-bold tracking-widest block">Response Schema (200 OK)</span>
+                        <div class="relative code-block">
+                            <button class="copy-btn absolute top-3 right-3 p-1.5 rounded bg-surface-container-highest/80 hover:bg-surface-container-highest text-on-surface-variant hover:text-primary transition-all border border-outline-variant/30 flex items-center justify-center" onclick="copyCode(this)">
+                                <span class="material-symbols-outlined text-[16px]">content_copy</span>
+                            </button>
+                            <pre class="p-md rounded bg-surface-container-lowest border border-outline-variant/20 overflow-x-auto text-data-sm font-data-sm">{
+  <span class="tok-key">"label"</span>: <span class="tok-str">"fake"</span>,
+  <span class="tok-key">"confidence"</span>: <span class="tok-num">0.934</span>,
+  <span class="tok-key">"probabilities"</span>: {
+    <span class="tok-key">"real"</span>: <span class="tok-num">0.066</span>,
+    <span class="tok-key">"fake"</span>: <span class="tok-num">0.934</span>
+  },
+  <span class="tok-key">"processing_ms"</span>: <span class="tok-num">42.3</span>,
+  <span class="tok-key">"gradcam_image"</span>: <span class="tok-str">"data:image/png;base64,iVBORw0KGgoAAAANS..."</span>
+}</pre>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-md pt-sm">
+                            <div class="space-y-sm">
+                                <span class="font-label-caps text-label-caps text-on-surface-variant uppercase font-bold tracking-widest block">cURL Example</span>
+                                <div class="relative code-block">
+                                    <button class="copy-btn absolute top-3 right-3 p-1.5 rounded bg-surface-container-highest/80 hover:bg-surface-container-highest text-on-surface-variant hover:text-primary transition-all border border-outline-variant/30 flex items-center justify-center" onclick="copyCode(this)">
+                                        <span class="material-symbols-outlined text-[16px]">content_copy</span>
+                                    </button>
+                                    <pre class="p-md rounded bg-surface-container-lowest border border-outline-variant/20 overflow-x-auto text-data-sm font-data-sm">curl -X POST http://localhost:8000/api/predict/image \
+  -F "file=@face.jpg" \
+  -F "use_tta=true"</pre>
+                                </div>
+                            </div>
+                            <div class="space-y-sm">
+                                <span class="font-label-caps text-label-caps text-on-surface-variant uppercase font-bold tracking-widest block">Python Example</span>
+                                <div class="relative code-block">
+                                    <button class="copy-btn absolute top-3 right-3 p-1.5 rounded bg-surface-container-highest/80 hover:bg-surface-container-highest text-on-surface-variant hover:text-primary transition-all border border-outline-variant/30 flex items-center justify-center" onclick="copyCode(this)">
+                                        <span class="material-symbols-outlined text-[16px]">content_copy</span>
+                                    </button>
+                                    <pre class="p-md rounded bg-surface-container-lowest border border-outline-variant/20 overflow-x-auto text-data-sm font-data-sm">import requests
+files = {"file": open("face.jpg", "rb")}
+params = {"use_tta": True}
+res = requests.post("http://localhost:8000/api/predict/image", files=files, params=params)
+print(res.json())</pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- POST /api/predict/video -->
+                <div id="ep-predict-video" class="endpoint-card elevated bg-surface-container-low rounded-lg scroll-mt-24">
+                    <div class="endpoint-card-header p-md flex justify-between items-center cursor-pointer select-none">
+                        <div class="flex items-center gap-md">
+                            <span class="px-sm py-1 font-label-caps text-label-caps text-primary bg-surface-container-highest border border-outline-variant/30 rounded">POST</span>
+                            <code class="font-data-sm text-data-sm text-primary font-bold">/api/predict/video</code>
+                            <span class="text-on-surface-variant font-body-md text-body-md hidden sm:inline">— Scan Video</span>
+                        </div>
+                        <span class="material-symbols-outlined chevron-icon text-on-surface-variant">expand_more</span>
+                    </div>
+                    <div class="endpoint-body p-md border-t border-outline-variant/10 bg-surface-container-lowest/30 space-y-md">
+                        <p class="font-body-md text-body-md text-on-surface-variant">Process an uploaded video clip. Sample frames are extracted, scored, and aggregated using a confidence-weighted voting matrix.</p>
+                        
+                        <span class="font-label-caps text-label-caps text-on-surface-variant uppercase font-bold tracking-widest block">Request Parameters</span>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left font-body-md border-collapse">
+                                <thead>
+                                    <tr class="border-b border-outline-variant/30">
+                                        <th class="py-sm pr-lg font-label-caps text-label-caps text-primary">Parameter</th>
+                                        <th class="py-sm pr-lg font-label-caps text-label-caps text-primary">Type</th>
+                                        <th class="py-sm pr-lg font-label-caps text-label-caps text-primary">Position</th>
+                                        <th class="py-sm font-label-caps text-label-caps text-primary">Description</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-outline-variant/10 text-on-surface-variant">
+                                    <tr>
+                                        <td class="py-sm pr-lg font-data-sm text-data-sm text-primary">file</td>
+                                        <td class="py-sm pr-lg font-data-sm text-data-sm">Binary</td>
+                                        <td class="py-sm pr-lg font-data-sm text-data-sm">multipart/form-data</td>
+                                        <td class="py-sm text-body-md">Required. The video file (mp4/avi/mov, max 100MB).</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="py-sm pr-lg font-data-sm text-data-sm text-primary">sample_frames</td>
+                                        <td class="py-sm pr-lg font-data-sm text-data-sm">Integer</td>
+                                        <td class="py-sm pr-lg font-data-sm text-data-sm">Query</td>
+                                        <td class="py-sm text-body-md">Optional. Number of frames to sample (default: 16, max: 32).</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <span class="font-label-caps text-label-caps text-on-surface-variant uppercase font-bold tracking-widest block">Response Schema (200 OK)</span>
+                        <div class="relative code-block">
+                            <button class="copy-btn absolute top-3 right-3 p-1.5 rounded bg-surface-container-highest/80 hover:bg-surface-container-highest text-on-surface-variant hover:text-primary transition-all border border-outline-variant/30 flex items-center justify-center" onclick="copyCode(this)">
+                                <span class="material-symbols-outlined text-[16px]">content_copy</span>
+                            </button>
+                            <pre class="p-md rounded bg-surface-container-lowest border border-outline-variant/20 overflow-x-auto text-data-sm font-data-sm">{
+  <span class="tok-key">"prediction"</span>: <span class="tok-str">"fake"</span>,
+  <span class="tok-key">"confidence"</span>: <span class="tok-num">0.891</span>,
+  <span class="tok-key">"frame_predictions"</span>: [
+    { <span class="tok-key">"frame_idx"</span>: <span class="tok-num">0</span>, <span class="tok-key">"label"</span>: <span class="tok-str">"fake"</span>, <span class="tok-key">"prob_fake"</span>: <span class="tok-num">0.92</span> },
+    { <span class="tok-key">"frame_idx"</span>: <span class="tok-num">1</span>, <span class="tok-key">"label"</span>: <span class="tok-str">"real"</span>, <span class="tok-key">"prob_fake"</span>: <span class="tok-num">0.08</span> }
+  ],
+  <span class="tok-key">"processing_ms"</span>: <span class="tok-num">312.7</span>
+}</pre>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-md pt-sm">
+                            <div class="space-y-sm">
+                                <span class="font-label-caps text-label-caps text-on-surface-variant uppercase font-bold tracking-widest block">cURL Example</span>
+                                <div class="relative code-block">
+                                    <button class="copy-btn absolute top-3 right-3 p-1.5 rounded bg-surface-container-highest/80 hover:bg-surface-container-highest text-on-surface-variant hover:text-primary transition-all border border-outline-variant/30 flex items-center justify-center" onclick="copyCode(this)">
+                                        <span class="material-symbols-outlined text-[16px]">content_copy</span>
+                                    </button>
+                                    <pre class="p-md rounded bg-surface-container-lowest border border-outline-variant/20 overflow-x-auto text-data-sm font-data-sm">curl -X POST http://localhost:8000/api/predict/video \
+  -F "file=@clip.mp4" \
+  -F "sample_frames=16"</pre>
+                                </div>
+                            </div>
+                            <div class="space-y-sm">
+                                <span class="font-label-caps text-label-caps text-on-surface-variant uppercase font-bold tracking-widest block">Python Example</span>
+                                <div class="relative code-block">
+                                    <button class="copy-btn absolute top-3 right-3 p-1.5 rounded bg-surface-container-highest/80 hover:bg-surface-container-highest text-on-surface-variant hover:text-primary transition-all border border-outline-variant/30 flex items-center justify-center" onclick="copyCode(this)">
+                                        <span class="material-symbols-outlined text-[16px]">content_copy</span>
+                                    </button>
+                                    <pre class="p-md rounded bg-surface-container-lowest border border-outline-variant/20 overflow-x-auto text-data-sm font-data-sm">import requests
+files = {"file": open("clip.mp4", "rb")}
+params = {"sample_frames": 16}
+res = requests.post("http://localhost:8000/api/predict/video", files=files, params=params)
+print(res.json())</pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- GET /api/model/info -->
+                <div id="ep-model-info" class="endpoint-card elevated bg-surface-container-low rounded-lg scroll-mt-24">
+                    <div class="endpoint-card-header p-md flex justify-between items-center cursor-pointer select-none">
+                        <div class="flex items-center gap-md">
+                            <span class="px-sm py-1 font-label-caps text-label-caps text-primary bg-surface-container border border-outline-variant/30 rounded">GET</span>
+                            <code class="font-data-sm text-data-sm text-primary font-bold">/api/model/info</code>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-label-caps bg-surface-container-lowest border border-outline-variant/20 text-on-surface-variant">Planned</span>
+                            <span class="text-on-surface-variant font-body-md text-body-md hidden sm:inline">— Model Details</span>
+                        </div>
+                        <span class="material-symbols-outlined chevron-icon text-on-surface-variant">expand_more</span>
+                    </div>
+                    <div class="endpoint-body p-md border-t border-outline-variant/10 bg-surface-container-lowest/30 space-y-md">
+                        <p class="font-body-md text-body-md text-on-surface-variant">Retrieve architecture metadata, parameter counts, and validation metrics for the active model. **(Planned)**</p>
+                        
+                        <span class="font-label-caps text-label-caps text-on-surface-variant uppercase font-bold tracking-widest block">Response Schema (200 OK)</span>
+                        <div class="relative code-block">
+                            <button class="copy-btn absolute top-3 right-3 p-1.5 rounded bg-surface-container-highest/80 hover:bg-surface-container-highest text-on-surface-variant hover:text-primary transition-all border border-outline-variant/30 flex items-center justify-center" onclick="copyCode(this)">
+                                <span class="material-symbols-outlined text-[16px]">content_copy</span>
+                            </button>
+                            <pre class="p-md rounded bg-surface-container-lowest border border-outline-variant/20 overflow-x-auto text-data-sm font-data-sm">{
+  <span class="tok-key">"architecture"</span>: <span class="tok-str">"resnet18"</span>,
+  <span class="tok-key">"parameters"</span>: <span class="tok-num">11689512</span>,
+  <span class="tok-key">"trained_on"</span>: <span class="tok-str">"Celeb-DF v2"</span>
+}</pre>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-md pt-sm">
+                            <div class="space-y-sm">
+                                <span class="font-label-caps text-label-caps text-on-surface-variant uppercase font-bold tracking-widest block">cURL Example</span>
+                                <div class="relative code-block">
+                                    <button class="copy-btn absolute top-3 right-3 p-1.5 rounded bg-surface-container-highest/80 hover:bg-surface-container-highest text-on-surface-variant hover:text-primary transition-all border border-outline-variant/30 flex items-center justify-center" onclick="copyCode(this)">
+                                        <span class="material-symbols-outlined text-[16px]">content_copy</span>
+                                    </button>
+                                    <pre class="p-md rounded bg-surface-container-lowest border border-outline-variant/20 overflow-x-auto text-data-sm font-data-sm">curl -X GET http://localhost:8000/api/model/info</pre>
+                                </div>
+                            </div>
+                            <div class="space-y-sm">
+                                <span class="font-label-caps text-label-caps text-on-surface-variant uppercase font-bold tracking-widest block">Python Example</span>
+                                <div class="relative code-block">
+                                    <button class="copy-btn absolute top-3 right-3 p-1.5 rounded bg-surface-container-highest/80 hover:bg-surface-container-highest text-on-surface-variant hover:text-primary transition-all border border-outline-variant/30 flex items-center justify-center" onclick="copyCode(this)">
+                                        <span class="material-symbols-outlined text-[16px]">content_copy</span>
+                                    </button>
+                                    <pre class="p-md rounded bg-surface-container-lowest border border-outline-variant/20 overflow-x-auto text-data-sm font-data-sm">import requests
+res = requests.get("http://localhost:8000/api/model/info")
+print(res.json())</pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- POST /api/model/reload -->
+                <div id="ep-model-reload" class="endpoint-card elevated bg-surface-container-low rounded-lg scroll-mt-24">
+                    <div class="endpoint-card-header p-md flex justify-between items-center cursor-pointer select-none">
+                        <div class="flex items-center gap-md">
+                            <span class="px-sm py-1 font-label-caps text-label-caps text-primary bg-surface-container-highest border border-outline-variant/30 rounded">POST</span>
+                            <code class="font-data-sm text-data-sm text-primary font-bold">/api/model/reload</code>
+                            <span class="text-on-surface-variant font-body-md text-body-md hidden sm:inline">— Reload Checkpoint</span>
+                        </div>
+                        <span class="material-symbols-outlined chevron-icon text-on-surface-variant">expand_more</span>
+                    </div>
+                    <div class="endpoint-body p-md border-t border-outline-variant/10 bg-surface-container-lowest/30 space-y-md">
+                        <p class="font-body-md text-body-md text-on-surface-variant">Swap the active weights of the neural pipeline. Reloads the predictor using the specified checkpoint path.</p>
+                        
+                        <span class="font-label-caps text-label-caps text-on-surface-variant uppercase font-bold tracking-widest block">Request Body Schema</span>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left font-body-md border-collapse">
+                                <thead>
+                                    <tr class="border-b border-outline-variant/30">
+                                        <th class="py-sm pr-lg font-label-caps text-label-caps text-primary">Field</th>
+                                        <th class="py-sm pr-lg font-label-caps text-label-caps text-primary">Type</th>
+                                        <th class="py-sm font-label-caps text-label-caps text-primary">Description</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-outline-variant/10 text-on-surface-variant">
+                                    <tr>
+                                        <td class="py-sm pr-lg font-data-sm text-data-sm text-primary">checkpoint_path</td>
+                                        <td class="py-sm pr-lg font-data-sm text-data-sm">String</td>
+                                        <td class="py-sm text-body-md">Required. Path to the model checkpoint `.pth` file on the local disk.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <span class="font-label-caps text-label-caps text-on-surface-variant uppercase font-bold tracking-widest block">Response Schema (200 OK)</span>
+                        <div class="relative code-block">
+                            <button class="copy-btn absolute top-3 right-3 p-1.5 rounded bg-surface-container-highest/80 hover:bg-surface-container-highest text-on-surface-variant hover:text-primary transition-all border border-outline-variant/30 flex items-center justify-center" onclick="copyCode(this)">
+                                <span class="material-symbols-outlined text-[16px]">content_copy</span>
+                            </button>
+                            <pre class="p-md rounded bg-surface-container-lowest border border-outline-variant/20 overflow-x-auto text-data-sm font-data-sm">{
+  <span class="tok-key">"status"</span>: <span class="tok-str">"reloaded"</span>,
+  <span class="tok-key">"model_version"</span>: <span class="tok-str">"checkpoints/resnet18/best.pth"</span>,
+  <span class="tok-key">"val_accuracy"</span>: <span class="tok-num">0.0</span>
+}</pre>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-md pt-sm">
+                            <div class="space-y-sm">
+                                <span class="font-label-caps text-label-caps text-on-surface-variant uppercase font-bold tracking-widest block">cURL Example</span>
+                                <div class="relative code-block">
+                                    <button class="copy-btn absolute top-3 right-3 p-1.5 rounded bg-surface-container-highest/80 hover:bg-surface-container-highest text-on-surface-variant hover:text-primary transition-all border border-outline-variant/30 flex items-center justify-center" onclick="copyCode(this)">
+                                        <span class="material-symbols-outlined text-[16px]">content_copy</span>
+                                    </button>
+                                    <pre class="p-md rounded bg-surface-container-lowest border border-outline-variant/20 overflow-x-auto text-data-sm font-data-sm">curl -X POST http://localhost:8000/api/model/reload \
+  -H "Content-Type: application/json" \
+  -d '{"checkpoint_path": "checkpoints/resnet18/best.pth"}'</pre>
+                                </div>
+                            </div>
+                            <div class="space-y-sm">
+                                <span class="font-label-caps text-label-caps text-on-surface-variant uppercase font-bold tracking-widest block">Python Example</span>
+                                <div class="relative code-block">
+                                    <button class="copy-btn absolute top-3 right-3 p-1.5 rounded bg-surface-container-highest/80 hover:bg-surface-container-highest text-on-surface-variant hover:text-primary transition-all border border-outline-variant/30 flex items-center justify-center" onclick="copyCode(this)">
+                                        <span class="material-symbols-outlined text-[16px]">content_copy</span>
+                                    </button>
+                                    <pre class="p-md rounded bg-surface-container-lowest border border-outline-variant/20 overflow-x-auto text-data-sm font-data-sm">import requests
+res = requests.post("http://localhost:8000/api/model/reload", json={"checkpoint_path": "checkpoints/resnet18/best.pth"})
+print(res.json())</pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- GET /api/config -->
+                <div id="ep-config" class="endpoint-card elevated bg-surface-container-low rounded-lg scroll-mt-24">
+                    <div class="endpoint-card-header p-md flex justify-between items-center cursor-pointer select-none">
+                        <div class="flex items-center gap-md">
+                            <span class="px-sm py-1 font-label-caps text-label-caps text-primary bg-surface-container border border-outline-variant/30 rounded">GET</span>
+                            <code class="font-data-sm text-data-sm text-primary font-bold">/api/config</code>
+                            <span class="text-on-surface-variant font-body-md text-body-md hidden sm:inline">— Client Configuration</span>
+                        </div>
+                        <span class="material-symbols-outlined chevron-icon text-on-surface-variant">expand_more</span>
+                    </div>
+                    <div class="endpoint-body p-md border-t border-outline-variant/10 bg-surface-container-lowest/30 space-y-md">
+                        <p class="font-body-md text-body-md text-on-surface-variant">Retrieve configurations loaded by the backend (e.g. backend Base URL details) required by the client frontend.</p>
+                        
+                        <span class="font-label-caps text-label-caps text-on-surface-variant uppercase font-bold tracking-widest block">Response Schema (200 OK)</span>
+                        <div class="relative code-block">
+                            <button class="copy-btn absolute top-3 right-3 p-1.5 rounded bg-surface-container-highest/80 hover:bg-surface-container-highest text-on-surface-variant hover:text-primary transition-all border border-outline-variant/30 flex items-center justify-center" onclick="copyCode(this)">
+                                <span class="material-symbols-outlined text-[16px]">content_copy</span>
+                            </button>
+                            <pre class="p-md rounded bg-surface-container-lowest border border-outline-variant/20 overflow-x-auto text-data-sm font-data-sm">{
+  <span class="tok-key">"api_base_url"</span>: <span class="tok-str">""</span>,
+  <span class="tok-key">"version"</span>: <span class="tok-str">"0.1.0"</span>
+}</pre>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-md pt-sm">
+                            <div class="space-y-sm">
+                                <span class="font-label-caps text-label-caps text-on-surface-variant uppercase font-bold tracking-widest block">cURL Example</span>
+                                <div class="relative code-block">
+                                    <button class="copy-btn absolute top-3 right-3 p-1.5 rounded bg-surface-container-highest/80 hover:bg-surface-container-highest text-on-surface-variant hover:text-primary transition-all border border-outline-variant/30 flex items-center justify-center" onclick="copyCode(this)">
+                                        <span class="material-symbols-outlined text-[16px]">content_copy</span>
+                                    </button>
+                                    <pre class="p-md rounded bg-surface-container-lowest border border-outline-variant/20 overflow-x-auto text-data-sm font-data-sm">curl -X GET http://localhost:8000/api/config</pre>
+                                </div>
+                            </div>
+                            <div class="space-y-sm">
+                                <span class="font-label-caps text-label-caps text-on-surface-variant uppercase font-bold tracking-widest block">Python Example</span>
+                                <div class="relative code-block">
+                                    <button class="copy-btn absolute top-3 right-3 p-1.5 rounded bg-surface-container-highest/80 hover:bg-surface-container-highest text-on-surface-variant hover:text-primary transition-all border border-outline-variant/30 flex items-center justify-center" onclick="copyCode(this)">
+                                        <span class="material-symbols-outlined text-[16px]">content_copy</span>
+                                    </button>
+                                    <pre class="p-md rounded bg-surface-container-lowest border border-outline-variant/20 overflow-x-auto text-data-sm font-data-sm">import requests
+res = requests.get("http://localhost:8000/api/config")
+print(res.json())</pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Webhooks Overview -->
+            <section id="section-webhooks" class="scroll-mt-24 space-y-md">
+                <h2 class="font-headline-lg text-headline-lg text-primary border-b border-outline-variant/10 pb-2">Webhooks</h2>
+                <p class="font-body-md text-body-md text-on-surface-variant">
+                    Webhooks allow you to receive real-time HTTP POST notifications when specific events occur within the DeepTrace analysis pipeline. Instead of polling the REST endpoints for completion, DeepTrace pushes the completed payload directly to your configured listener.
+                </p>
+                <div class="p-md bg-surface-container-low border border-outline-variant/30 rounded-lg flex items-start gap-md">
+                    <span class="material-symbols-outlined text-[24px] text-primary">construction</span>
+                    <div>
+                        <span class="font-label-caps text-label-caps text-primary uppercase font-bold tracking-widest block mb-1">Webhooks Planned for v0.4</span>
+                        <p class="font-data-sm text-data-sm text-on-surface-variant">The webhook subsystem is under active design. The specifications below define the target implementation. Endpoints and signatures are subject to change before the final v0.4 release.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Registering a Webhook -->
+            <div id="wh-register" class="scroll-mt-24 space-y-sm">
+                <h3 class="font-headline-md text-headline-md text-primary">Registering a Webhook</h3>
+                <p class="font-body-md text-body-md text-on-surface-variant">
+                    To receive webhook events, register your endpoint URL. DeepTrace will verify the endpoint via a handshake challenge.
+                </p>
+                <div class="relative code-block">
+                    <button class="copy-btn absolute top-3 right-3 p-1.5 rounded bg-surface-container-highest/80 hover:bg-surface-container-highest text-on-surface-variant hover:text-primary transition-all border border-outline-variant/30 flex items-center justify-center" onclick="copyCode(this)">
+                        <span class="material-symbols-outlined text-[16px]">content_copy</span>
+                    </button>
+                    <pre class="p-md rounded bg-surface-container-lowest border border-outline-variant/20 overflow-x-auto text-data-sm font-data-sm">curl -X POST http://localhost:8000/api/webhooks \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://yourdomain.com/webhooks/deeptrace",
+    "events": ["scan.completed", "scan.failed"],
+    "secret": "your_webhook_signing_secret"
+  }'</pre>
+                </div>
+                <div class="space-y-sm mt-md">
+                    <span class="font-label-caps text-label-caps text-on-surface-variant uppercase font-bold tracking-widest block">201 Created Response Schema</span>
+                    <div class="relative code-block">
+                        <button class="copy-btn absolute top-3 right-3 p-1.5 rounded bg-surface-container-highest/80 hover:bg-surface-container-highest text-on-surface-variant hover:text-primary transition-all border border-outline-variant/30 flex items-center justify-center" onclick="copyCode(this)">
+                            <span class="material-symbols-outlined text-[16px]">content_copy</span>
+                        </button>
+                        <pre class="p-md rounded bg-surface-container-lowest border border-outline-variant/20 overflow-x-auto text-data-sm font-data-sm">{
+  <span class="tok-key">"id"</span>: <span class="tok-str">"wh_01h7abc123"</span>,
+  <span class="tok-key">"url"</span>: <span class="tok-str">"https://yourdomain.com/webhooks/deeptrace"</span>,
+  <span class="tok-key">"events"</span>: [<span class="tok-str">"scan.completed"</span>, <span class="tok-str">"scan.failed"</span>],
+  <span class="tok-key">"secret"</span>: <span class="tok-str">"your_webhook_signing_secret"</span>,
+  <span class="tok-key">"status"</span>: <span class="tok-str">"active"</span>
+}</pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Event Types -->
+            <div id="wh-events" class="scroll-mt-24 space-y-md">
+                <h3 class="font-headline-md text-headline-md text-primary">Event Types</h3>
+                <p class="font-body-md text-body-md text-on-surface-variant">
+                    The following event types are triggered by DeepTrace. Click the tabs below to view the payload schema for each event:
+                </p>
+                <div class="flex gap-md border-b border-outline-variant/20 pb-sm mb-md" id="event-tabs">
+                    <button class="px-md py-1.5 font-label-caps text-label-caps bg-surface-container-high text-primary border border-outline-variant/30 rounded tactile-button active-tab" onclick="switchEventTab('completed')">scan.completed</button>
+                    <button class="px-md py-1.5 font-label-caps text-label-caps bg-surface-container text-on-surface-variant hover:text-primary border border-outline-variant/10 rounded tactile-button" onclick="switchEventTab('reloaded')">model.reloaded</button>
+                    <button class="px-md py-1.5 font-label-caps text-label-caps bg-surface-container text-on-surface-variant hover:text-primary border border-outline-variant/10 rounded tactile-button" onclick="switchEventTab('failed')">scan.failed</button>
+                </div>
+                <div id="tab-content-completed" class="space-y-sm event-tab-content">
+                    <div class="relative code-block">
+                        <button class="copy-btn absolute top-3 right-3 p-1.5 rounded bg-surface-container-highest/80 hover:bg-surface-container-highest text-on-surface-variant hover:text-primary transition-all border border-outline-variant/30 flex items-center justify-center" onclick="copyCode(this)">
+                            <span class="material-symbols-outlined text-[16px]">content_copy</span>
+                        </button>
+                        <pre class="p-md rounded bg-surface-container-lowest border border-outline-variant/20 overflow-x-auto text-data-sm font-data-sm">{
+  <span class="tok-key">"event"</span>: <span class="tok-str">"scan.completed"</span>,
+  <span class="tok-key">"timestamp"</span>: <span class="tok-num">1719273600</span>,
+  <span class="tok-key">"data"</span>: {
+    <span class="tok-key">"scan_id"</span>: <span class="tok-str">"scan_992_04_x"</span>,
+    <span class="tok-key">"media_type"</span>: <span class="tok-str">"image"</span>,
+    <span class="tok-key">"label"</span>: <span class="tok-str">"fake"</span>,
+    <span class="tok-key">"confidence"</span>: <span class="tok-num">0.934</span>,
+    <span class="tok-key">"probabilities"</span>: {
+      <span class="tok-key">"real"</span>: <span class="tok-num">0.066</span>,
+      <span class="tok-key">"fake"</span>: <span class="tok-num">0.934</span>
+    }
+  }
+}</pre>
+                    </div>
+                </div>
+                <div id="tab-content-reloaded" class="space-y-sm event-tab-content hidden">
+                    <div class="relative code-block">
+                        <button class="copy-btn absolute top-3 right-3 p-1.5 rounded bg-surface-container-highest/80 hover:bg-surface-container-highest text-on-surface-variant hover:text-primary transition-all border border-outline-variant/30 flex items-center justify-center" onclick="copyCode(this)">
+                            <span class="material-symbols-outlined text-[16px]">content_copy</span>
+                        </button>
+                        <pre class="p-md rounded bg-surface-container-lowest border border-outline-variant/20 overflow-x-auto text-data-sm font-data-sm">{
+  <span class="tok-key">"event"</span>: <span class="tok-str">"model.reloaded"</span>,
+  <span class="tok-key">"timestamp"</span>: <span class="tok-num">1719273800</span>,
+  <span class="tok-key">"data"</span>: {
+    <span class="tok-key">"model_version"</span>: <span class="tok-str">"checkpoints/resnet18/best.pth"</span>,
+    <span class="tok-key">"val_accuracy"</span>: <span class="tok-num">0.914</span>
+  }
+}</pre>
+                    </div>
+                </div>
+                <div id="tab-content-failed" class="space-y-sm event-tab-content hidden">
+                    <div class="relative code-block">
+                        <button class="copy-btn absolute top-3 right-3 p-1.5 rounded bg-surface-container-highest/80 hover:bg-surface-container-highest text-on-surface-variant hover:text-primary transition-all border border-outline-variant/30 flex items-center justify-center" onclick="copyCode(this)">
+                            <span class="material-symbols-outlined text-[16px]">content_copy</span>
+                        </button>
+                        <pre class="p-md rounded bg-surface-container-lowest border border-outline-variant/20 overflow-x-auto text-data-sm font-data-sm">{
+  <span class="tok-key">"event"</span>: <span class="tok-str">"scan.failed"</span>,
+  <span class="tok-key">"timestamp"</span>: <span class="tok-num">1719273900</span>,
+  <span class="tok-key">"data"</span>: {
+    <span class="tok-key">"scan_id"</span>: <span class="tok-str">"scan_992_05_x"</span>,
+    <span class="tok-key">"media_type"</span>: <span class="tok-str">"video"</span>,
+    <span class="tok-key">"error_code"</span>: <span class="tok-num">422</span>,
+    <span class="tok-key">"message"</span>: <span class="tok-str">"Cannot decode video frames"</span>
+  }
+}</pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Signature Verification -->
+            <div id="wh-security" class="scroll-mt-24 space-y-md">
+                <h3 class="font-headline-md text-headline-md text-primary">Signature Verification</h3>
+                <p class="font-body-md text-body-md text-on-surface-variant">
+                    Each webhook request contains an <code>X-DeepTrace-Signature-256</code> header computed using HMAC-SHA256. Secure your endpoints by verifying the signature in constant-time:
+                </p>
+                <div class="space-y-sm">
+                    <span class="font-label-caps text-label-caps text-on-surface-variant uppercase font-bold tracking-widest block">Python (FastAPI) Verification Example</span>
+                    <div class="relative code-block">
+                        <button class="copy-btn absolute top-3 right-3 p-1.5 rounded bg-surface-container-highest/80 hover:bg-surface-container-highest text-on-surface-variant hover:text-primary transition-all border border-outline-variant/30 flex items-center justify-center" onclick="copyCode(this)">
+                            <span class="material-symbols-outlined text-[16px]">content_copy</span>
+                        </button>
+                        <pre class="p-md rounded bg-surface-container-lowest border border-outline-variant/20 overflow-x-auto text-data-sm font-data-sm">import hmac
+import hashlib
+from fastapi import Header, HTTPException, Request
+
+async def verify_signature(request: Request, x_deeptrace_signature_256: str = Header(...)):
+    body = await request.body()
+    secret = b"your_webhook_signing_secret"
+    expected = hmac.new(secret, body, hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(expected, x_deeptrace_signature_256):
+        raise HTTPException(status_code=401, detail="Invalid signature")</pre>
+                    </div>
+                </div>
+                <div class="space-y-sm mt-md">
+                    <span class="font-label-caps text-label-caps text-on-surface-variant uppercase font-bold tracking-widest block">Node.js Verification Example</span>
+                    <div class="relative code-block">
+                        <button class="copy-btn absolute top-3 right-3 p-1.5 rounded bg-surface-container-highest/80 hover:bg-surface-container-highest text-on-surface-variant hover:text-primary transition-all border border-outline-variant/30 flex items-center justify-center" onclick="copyCode(this)">
+                            <span class="material-symbols-outlined text-[16px]">content_copy</span>
+                        </button>
+                        <pre class="p-md rounded bg-surface-container-lowest border border-outline-variant/20 overflow-x-auto text-data-sm font-data-sm">const crypto = require('crypto');
+
+function verifySignature(req, res, next) {
+    const signature = req.headers['x-deeptrace-signature-256'];
+    const secret = 'your_webhook_signing_secret';
+    const hash = crypto.createHmac('sha256', secret).update(req.rawBody).digest('hex');
+    if (!crypto.timingSafeEqual(Buffer.from(hash), Buffer.from(signature))) {
+        return res.status(401).send('Invalid signature');
+    }
+    next();
+}</pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Retry Logic -->
+            <div id="wh-retry" class="scroll-mt-24 space-y-md">
+                <h3 class="font-headline-md text-headline-md text-primary">Retry Logic</h3>
+                <p class="font-body-md text-body-md text-on-surface-variant">
+                    If your webhook server returns a non-2xx status code or times out, DeepTrace retries the delivery up to 4 times with exponential backoff:
+                </p>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left font-body-md border-collapse">
+                        <thead>
+                            <tr class="border-b border-outline-variant/30">
+                                <th class="py-md pr-lg font-label-caps text-label-caps text-primary">Attempt</th>
+                                <th class="py-md pr-lg font-label-caps text-label-caps text-primary">Delay</th>
+                                <th class="py-md font-label-caps text-label-caps text-primary">Strategy</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-outline-variant/10 text-on-surface-variant">
+                            <tr>
+                                <td class="py-md pr-lg font-data-sm text-data-sm text-primary">1</td>
+                                <td class="py-md pr-lg font-data-sm text-data-sm">5 seconds</td>
+                                <td class="py-md text-body-md">First retry after failure.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-md pr-lg font-data-sm text-data-sm text-primary">2</td>
+                                <td class="py-md pr-lg font-data-sm text-data-sm">30 seconds</td>
+                                <td class="py-md text-body-md">Second retry after failure.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-md pr-lg font-data-sm text-data-sm text-primary">3</td>
+                                <td class="py-md pr-lg font-data-sm text-data-sm">5 minutes</td>
+                                <td class="py-md text-body-md">Third retry after failure.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-md pr-lg font-data-sm text-data-sm text-primary">4</td>
+                                <td class="py-md pr-lg font-data-sm text-data-sm">30 minutes</td>
+                                <td class="py-md text-body-md">Final attempt before dropping event.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Python SDK -->
+            <section id="section-sdk" class="scroll-mt-24 space-y-md">
+                <h2 class="font-headline-lg text-headline-lg text-primary border-b border-outline-variant/10 pb-2">SDK Reference</h2>
+                <h3 class="font-headline-md text-headline-md text-primary mt-md">Python SDK</h3>
+                <p class="font-body-md text-body-md text-on-surface-variant">
+                    Integrate DeepTrace with our high-level Python client library (planned for v0.5):
+                </p>
+                <div class="relative code-block">
+                    <button class="copy-btn absolute top-3 right-3 p-1.5 rounded bg-surface-container-highest/80 hover:bg-surface-container-highest text-on-surface-variant hover:text-primary transition-all border border-outline-variant/30 flex items-center justify-center" onclick="copyCode(this)">
+                        <span class="material-symbols-outlined text-[16px]">content_copy</span>
+                    </button>
+                    <pre class="p-md rounded bg-surface-container-lowest border border-outline-variant/20 overflow-x-auto text-data-sm font-data-sm">pip install deeptrace-sdk</pre>
+                </div>
+                <div class="space-y-sm mt-md">
+                    <span class="font-label-caps text-label-caps text-on-surface-variant uppercase font-bold tracking-widest block">Usage Example</span>
+                    <div class="relative code-block">
+                        <button class="copy-btn absolute top-3 right-3 p-1.5 rounded bg-surface-container-highest/80 hover:bg-surface-container-highest text-on-surface-variant hover:text-primary transition-all border border-outline-variant/30 flex items-center justify-center" onclick="copyCode(this)">
+                            <span class="material-symbols-outlined text-[16px]">content_copy</span>
+                        </button>
+                        <pre class="p-md rounded bg-surface-container-lowest border border-outline-variant/20 overflow-x-auto text-data-sm font-data-sm">from deeptrace import DeepTrace
+
+client = DeepTrace(api_key="your_api_key")
+
+# Scan an image
+result = client.scan_image("face.jpg", use_tta=True)
+print(f"Prediction: {result.label} (Conf: {result.confidence})")
+
+# Scan a video
+video_result = client.scan_video("clip.mp4", sample_frames=16)
+print(f"Verdict: {video_result.prediction}")
+
+# Register a webhook
+webhook = client.webhooks.create(
+    url="https://yourdomain.com/webhooks",
+    events=["scan.completed"]
+)</pre>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Node.js SDK -->
+            <section id="section-sdk-node" class="scroll-mt-24 space-y-md">
+                <h3 class="font-headline-md text-headline-md text-primary">Node.js SDK</h3>
+                <p class="font-body-md text-body-md text-on-surface-variant">
+                    Integrate DeepTrace with our JavaScript/TypeScript client library (planned for v0.5):
+                </p>
+                <div class="relative code-block">
+                    <button class="copy-btn absolute top-3 right-3 p-1.5 rounded bg-surface-container-highest/80 hover:bg-surface-container-highest text-on-surface-variant hover:text-primary transition-all border border-outline-variant/30 flex items-center justify-center" onclick="copyCode(this)">
+                        <span class="material-symbols-outlined text-[16px]">content_copy</span>
+                    </button>
+                    <pre class="p-md rounded bg-surface-container-lowest border border-outline-variant/20 overflow-x-auto text-data-sm font-data-sm">npm install @deeptrace/sdk</pre>
+                </div>
+                <div class="space-y-sm mt-md">
+                    <span class="font-label-caps text-label-caps text-on-surface-variant uppercase font-bold tracking-widest block">Usage Example</span>
+                    <div class="relative code-block">
+                        <button class="copy-btn absolute top-3 right-3 p-1.5 rounded bg-surface-container-highest/80 hover:bg-surface-container-highest text-on-surface-variant hover:text-primary transition-all border border-outline-variant/30 flex items-center justify-center" onclick="copyCode(this)">
+                            <span class="material-symbols-outlined text-[16px]">content_copy</span>
+                        </button>
+                        <pre class="p-md rounded bg-surface-container-lowest border border-outline-variant/20 overflow-x-auto text-data-sm font-data-sm">const { DeepTrace } = require('@deeptrace/sdk');
+
+const client = new DeepTrace({ apiKey: 'your_api_key' });
+
+async function run() {
+    // Scan an image
+    const result = await client.scanImage('face.jpg', { useTta: true });
+    console.log(`Prediction: ${result.label} (Conf: ${result.confidence})`);
+
+    // Scan a video
+    const videoResult = await client.scanVideo('clip.mp4', { sampleFrames: 16 });
+    console.log(`Verdict: ${videoResult.prediction}`);
+
+    // Register a webhook
+    await client.webhooks.create({
+        url: 'https://yourdomain.com/webhooks',
+        events: ['scan.completed']
+    });
+}</pre>
+                    </div>
+                </div>
+            </section>
+
+            <!-- CTA Section -->
+            <section class="elevated bg-surface-container-high p-xl rounded-xl text-center relative overflow-hidden">
+                <div class="absolute inset-0 opacity-[0.03] pointer-events-none" style="background-image: radial-gradient(circle at 2px 2px, var(--primary) 1px, transparent 0); background-size: 24px 24px;"></div>
+                <div class="relative z-10 space-y-lg">
+                    <h2 class="font-headline-lg text-[40px] md:text-[56px] text-primary tracking-tighter leading-none">Ready to integrate?</h2>
+                    <p class="font-body-lg text-body-lg text-on-surface-variant max-w-3xl mx-auto">Get started with our detection lab or discuss integration challenges on our repository.</p>
+                    <div class="flex flex-col sm:flex-row items-center justify-center gap-md pt-lg">
+                        <a href="index.html#section-detection-lab" class="px-xl py-md bg-primary text-on-primary font-label-caps text-label-caps elevated tactile-button rounded-lg w-full sm:w-auto uppercase tracking-widest hover:brightness-110 active:scale-95 transition-transform text-center">Try Detection Lab</a>
+                        <a href="https://github.com/obstinix/deeptrace/issues" target="_blank" rel="noopener" class="px-xl py-md border border-outline-variant text-primary font-label-caps text-label-caps tactile-button rounded-lg w-full sm:w-auto uppercase tracking-widest bg-transparent hover:bg-surface-container-highest/20 active:scale-95 transition-transform text-center">Open GitHub Issue</a>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+</main>
+
+<!-- Footer Shell -->
+<footer class="w-full py-xl px-margin-mobile md:px-margin-desktop flex flex-col md:flex-row justify-between items-center gap-md bg-surface-container-lowest border-t border-outline-variant/30 transition-colors duration-300">
+    <div class="flex items-center gap-md">
+        <div class="font-label-caps text-label-caps text-primary font-bold brand-text text-lg">DeepTrace</div>
+        <div class="w-px h-6 bg-outline-variant/30 hidden md:block"></div>
+        <div class="font-data-sm text-data-sm text-on-surface-variant opacity-80 uppercase tracking-widest">© 2024 Forensic Labs</div>
+    </div>
+    <div class="flex flex-wrap items-center justify-center gap-lg">
+        <a class="font-data-sm text-data-sm text-on-surface-variant hover:text-primary transition-all uppercase tracking-widest" href="https://github.com/obstinix/deeptrace#features" target="_blank" rel="noopener">System Status</a>
+        <a class="font-data-sm text-data-sm text-on-surface-variant hover:text-primary transition-all uppercase tracking-widest" href="https://github.com/obstinix/deeptrace#quick-start" target="_blank" rel="noopener">Documentation</a>
+        <a class="font-data-sm text-data-sm text-on-surface-variant hover:text-primary transition-all uppercase tracking-widest" href="webhooks.html">API Reference</a>
+        <a class="flex items-center gap-3 px-4 py-2 rounded-full elevated bg-surface-container text-on-surface-variant hover:text-primary hover:bg-surface-container-high transition-all group border border-outline-variant/20" href="https://github.com/obstinix" rel="noopener noreferrer" target="_blank" title="GitHub">
+            <svg class="w-4 h-4 fill-current transition-all group-hover:scale-110" viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"></path>
+            </svg>
+            <span class="font-label-caps text-[11px] font-bold tracking-[0.1em]">GITHUB</span>
+        </a>
+    </div>
+</footer>
+
+<script>
+    // Theme Management
+    const themeToggle = document.getElementById('theme-toggle');
+    const html = document.documentElement;
+
+    const setTheme = (theme) => {
+        if (theme === 'light') {
+            html.classList.remove('dark');
+            html.classList.add('light');
+            localStorage.setItem('theme', 'light');
+        } else {
+            html.classList.remove('light');
+            html.classList.add('dark');
+            localStorage.setItem('theme', 'dark');
+        }
+    };
+
+    // Initialize Theme
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    setTheme(savedTheme);
+
+    themeToggle.addEventListener('click', () => {
+        const isDark = html.classList.contains('dark');
+        setTheme(isDark ? 'light' : 'dark');
+    });
+
+    // Tactile Button Interactions
+    document.querySelectorAll('.tactile-button').forEach(button => {
+        button.addEventListener('mousedown', () => {
+            button.style.transform = 'translateY(1px)';
+        });
+        const reset = () => {
+            button.style.transform = '';
+        };
+        button.addEventListener('mouseup', reset);
+        button.addEventListener('mouseleave', reset);
+    });
+
+    // Copy to clipboard functionality
+    function copyCode(btn) {
+        const pre = btn.parentElement.querySelector('pre');
+        if (!pre) return;
+        const text = pre.innerText;
+        navigator.clipboard.writeText(text).then(() => {
+            const span = btn.querySelector('span');
+            const oldText = span.innerText;
+            span.innerText = 'check';
+            btn.classList.add('text-primary');
+            setTimeout(() => {
+                span.innerText = oldText;
+                btn.classList.remove('text-primary');
+            }, 2000);
+        });
+    }
+
+    // Webhook Event Tab Switching
+    function switchEventTab(tabId) {
+        document.querySelectorAll('.event-tab-content').forEach(el => el.classList.add('hidden'));
+        document.getElementById('tab-content-' + tabId).classList.remove('hidden');
+        
+        const btns = document.querySelectorAll('#event-tabs button');
+        btns.forEach(btn => {
+            btn.classList.remove('bg-surface-container-high', 'text-primary', 'border-outline-variant/30');
+            btn.classList.add('bg-surface-container', 'text-on-surface-variant', 'border-outline-variant/10');
+        });
+        const activeBtn = event.currentTarget;
+        activeBtn.classList.add('bg-surface-container-high', 'text-primary', 'border-outline-variant/30');
+        activeBtn.classList.remove('bg-surface-container', 'text-on-surface-variant', 'border-outline-variant/10');
+    }
+
+    // REST Endpoint Accordion Toggles
+    document.querySelectorAll('.endpoint-card-header').forEach(header => {
+        header.addEventListener('click', () => {
+            header.parentElement.classList.toggle('open');
+        });
+    });
+
+    // Sidebar Scroll Spy via IntersectionObserver
+    const activeClass = 'sidebar-link-active';
+    const sidebarLinks = document.querySelectorAll('aside a[href^="#"]');
+    const sectionsToObserve = document.querySelectorAll('section[id], div[id^="wh-"], div[id^="ep-"], h2[id="rest-header"]');
+
+    const spyObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const id = entry.target.getAttribute('id');
+                sidebarLinks.forEach(link => {
+                    const matches = link.getAttribute('href') === '#' + id;
+                    link.classList.toggle(activeClass, matches);
+                    if (matches) {
+                        link.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                    }
+                });
+            }
+        });
+    }, { rootMargin: '-96px 0px -60% 0px' });
+
+    sectionsToObserve.forEach(sec => {
+        spyObserver.observe(sec);
+    });
+</script>
+</body>
+</html>
