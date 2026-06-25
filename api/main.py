@@ -35,7 +35,11 @@ app.middleware("http")(track_metrics)
 for router in [predict_router, model_router, system_router]:
     app.include_router(router)
 app.mount("/static", StaticFiles(directory="stitch_veritas_ai_detection_platform"), name="static")
-
 @app.get("/")
 def serve_frontend():
     return FileResponse("index.html") if Path("index.html").exists() else ("index.html not found. Check deployment.", 404)
+
+
+@app.get("/webhooks", response_class=FileResponse)
+async def docs():
+    return FileResponse("webhooks.html")
