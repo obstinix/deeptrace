@@ -16,13 +16,14 @@ except ImportError:
 SUPPORTED_ARCHITECTURES = {
     "resnet18":        "checkpoints/resnet18/best.pth",
     "efficientnet_b0": "checkpoints/efficientnet_b0/best.pth",
-    # "vit_b16":       "checkpoints/vit_b16/best.pth",   # future
+    "vit_b16":         "checkpoints/vit_b16/best.pth",
 }
 
 # Input image sizes required per architecture
 IMAGE_SIZES = {
     "resnet18":        224,
     "efficientnet_b0": 224,
+    "vit_b16":         224,
 }
 
 
@@ -68,6 +69,21 @@ def build_model(architecture: str, num_classes: int = 2, dropout: float = 0.5) -
             )
             return model
 
+    if arch == "vit_b16":
+        if not _TIMM_AVAILABLE:
+            raise ImportError(
+                "timm is required for ViT-B/16. Install with: pip install timm"
+            )
+        model = timm.create_model(
+            "vit_base_patch16_224",
+            pretrained=True,
+            num_classes=num_classes,
+            # drop_rate applies to the MLP blocks, attn_drop_rate to attention weights
+            drop_rate=dropout,
+            attn_drop_rate=0.0,    # keep attention clean for rollout visualisation
+        )
+        return model
+
     raise ValueError(
         f"Unknown architecture: '{architecture}'. "
         f"Supported: {list(SUPPORTED_ARCHITECTURES.keys())}"
@@ -81,6 +97,11 @@ def get_gradcam_target_layer(model: nn.Module, architecture: str):
     """
     arch = architecture.lower()
 
+    if arch == "vit_b16":
+        # ViT uses AttentionRollout, not Grad-CAM.
+        # Returning None signals the API to use the attention path.
+        return None
+
     if arch == "resnet18":
         if hasattr(model, "features"):
             return model.features[-1][-1]        # DeepfakeResNet18 features
@@ -93,6 +114,12 @@ def get_gradcam_target_layer(model: nn.Module, architecture: str):
             return model.features[-1]            # torchvision: last Conv2dNormActivation
 
     raise ValueError(f"No Grad-CAM target defined for '{architecture}'")
+
+
+def supports_gradcam(architecture: str) -> bool:
+    """Return True if this architecture uses Grad-CAM for explainability.
+    ViT uses AttentionRollout instead."""
+    return architecture.lower() != "vit_b16"
 
 
 def count_parameters(model: nn.Module) -> int:

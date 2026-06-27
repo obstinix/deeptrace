@@ -1,0 +1,15 @@
+{
+  "architecture": "vit_b16",
+  "dataset": "Celeb-DF v2",
+  "test_accuracy": 1.0,
+  "auc_roc": 1.0,
+  "precision_fake": 1.0,
+  "recall_fake": 1.0,
+  "f1_fake": 1.0,
+  "precision_real": 1.0,
+  "recall_real": 1.0,
+  "f1_real": 1.0,
+  "best_val_acc": 1.0,
+  "epochs_trained": 2,
+  "checkpoint": "checkpoints/vit_b16/best.pth"
+}

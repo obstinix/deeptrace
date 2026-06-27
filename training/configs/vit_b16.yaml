@@ -1,0 +1,48 @@
+# training/configs/vit_b16.yaml
+model:
+  architecture: vit_b16
+  pretrained: true
+  num_classes: 2
+  dropout: 0.1        # ViT internal MLP dropout — low; model already regularised
+
+data:
+  train_dir: data/frames/train
+  val_dir:   data/frames/val
+  test_dir:  data/frames/test
+  image_size: 224     # patch16 expects 224×224 (14×14 grid of 16×16 patches)
+  num_workers: 4
+
+training:
+  epochs: 2          # Run 2 epochs for quick verification and metrics logging
+  batch_size: 16      # ViT-B/16 is 86M params; 16 is safe at 8–10 GB VRAM
+  gradient_accumulation_steps: 2   # effective batch = 32
+  learning_rate: 2.0e-5  # ViT pretrained weights are sensitive — very low LR
+  weight_decay: 0.05     # standard for ViT fine-tuning
+  scheduler: cosine
+  warmup_epochs: 5       # longer warmup critical for ViT stability
+  early_stopping_patience: 7
+  class_weights: auto
+  mixed_precision: true
+  gradient_clip: 1.0     # clip grad norm
+
+augmentation:
+  # ViT benefits from stronger augmentation than CNNs
+  horizontal_flip: true
+  random_crop: true
+  color_jitter:
+    brightness: 0.4
+    contrast:   0.4
+    saturation: 0.3
+    hue:        0.1
+  random_erasing: 0.4     # ViT is more robust to occluded patches
+  normalize:
+    mean: [0.485, 0.456, 0.406]
+    std:  [0.229, 0.224, 0.225]
+
+logging:
+  checkpoint_dir: checkpoints/vit_b16
+  log_dir:        logs/vit_b16
+  save_best_only: true
+  eval_report:    logs/vit_b16/eval_report.json
+  confusion_matrix: logs/vit_b16/confusion_matrix.png
+  roc_curve:        logs/vit_b16/roc_curve.png

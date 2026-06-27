@@ -72,6 +72,14 @@
         }
     </script>
 <style>
+        .dt-explainability-method {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--on-surface-variant, #555);
+            margin-bottom: 6px;
+        }
         html {
             scroll-behavior: smooth;
         }
@@ -778,8 +786,11 @@
                             (arch === window.DeepTrace._selectedModel ? ' active' : '') +
                             (!info.loaded ? ' unavailable' : '');
                         pill.dataset.arch = arch;
+                        const expMethod = info.explainability_method === 'attention_rollout'
+                            ? 'Attention Rollout'
+                            : 'Grad-CAM';
                         pill.title = info.loaded
-                            ? `${(info.params / 1e6).toFixed(1)}M params · ${info.checkpoint}`
+                            ? `${(info.params / 1e6).toFixed(1)}M params · ${expMethod} · ${info.checkpoint}`
                             : `Checkpoint not found: ${info.checkpoint}`;
                         pill.textContent = arch.replace('_', '-');
                         if (info.loaded) {
@@ -833,7 +844,7 @@
                                 <div class="compare-verdict ${v}">${v.toUpperCase()}</div>
                                 <div class="compare-conf">${pct}% confidence</div>
                                 <div class="compare-meta">
-                                    ${ms}ms · ${params}<br>
+                                    ${ms}ms · ${params} · ${result.explainability_method === 'attention_rollout' ? 'attn-rollout' : 'grad-cam'}<br>
                                     fake ${(result.probabilities?.fake * 100).toFixed(1)}%
                                     / real ${(result.probabilities?.real * 100).toFixed(1)}%
                                 </div>`;
@@ -1007,8 +1018,22 @@
                 addToHistory(file.name, data.label, data.confidence, data.processing_ms);
                 
                 if (data.gradcam_image) {
-                    document.getElementById('gradcam-container').classList.remove('hidden');
+                    const container = document.getElementById('gradcam-container');
+                    container.classList.remove('hidden');
                     document.getElementById('gradcam-img').src = data.gradcam_image;
+                    
+                    const method = data.explainability_method === 'attention_rollout'
+                        ? 'Attention Rollout'
+                        : 'Grad-CAM';
+                    const archName = data.architecture ? data.architecture.replace('_', '-') : 'resnet18';
+                    
+                    let methodLabel = container.querySelector('.dt-explainability-method');
+                    if (!methodLabel) {
+                        methodLabel = document.createElement('div');
+                        methodLabel.className = 'dt-explainability-method';
+                        container.insertBefore(methodLabel, document.getElementById('gradcam-img'));
+                    }
+                    methodLabel.textContent = `${method} · ${archName.toUpperCase()}`;
                 }
                 if (data.frame_predictions) {
                     document.getElementById('frame-timeline-container').classList.remove('hidden');

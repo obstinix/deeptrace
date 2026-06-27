@@ -20,15 +20,18 @@ from api.db import init_db, get_all
 from api.middleware import track_metrics
 from api.routes.predict import limiter
 
+import base64
 from deepfake_recognition.utils.model_factory import (
     build_model as factory_build,
     get_gradcam_target_layer,
     SUPPORTED_ARCHITECTURES,
     IMAGE_SIZES,
     count_parameters,
+    supports_gradcam,
 )
 from deepfake_recognition.utils.gradcam import generate_gradcam_base64
 from deepfake_recognition.inference.predictor import Predictor
+from deepfake_recognition.utils.attention_rollout import AttentionRollout
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
 
@@ -54,7 +57,7 @@ def _load_arch(architecture: str, checkpoint_path: Optional[str] = None) -> bool
         state = torch.load(ckpt, map_location=DEVICE)
         if isinstance(state, dict) and "model_state_dict" in state:
             state = state["model_state_dict"]
-        net.load_state_dict(state)
+        net.load_state_dict(state, strict=False)
         net.to(DEVICE)
         net.eval()
         MODEL_REGISTRY[arch]["model"]     = net
@@ -97,6 +100,49 @@ MAX_IMAGE_BYTES = 10 * 1024 * 1024
 MAX_VIDEO_BYTES = 100 * 1024 * 1024
 
 # ── Inference / Prediction Endpoints ──────────────────────────────────────────
+
+# Helper to generate explainability map (either Grad-CAM or Attention Rollout)
+def get_explainability_map(
+    net: torch.nn.Module,
+    arch: str,
+    input_tensor: torch.Tensor,
+    original_image
+) -> Optional[str]:
+    """
+    Returns a base64-encoded PNG of the explainability overlay,
+    or None if generation fails.
+    """
+    try:
+        if supports_gradcam(arch):
+            # Existing Grad-CAM path (ResNet-18 / EfficientNet-B0)
+            target_layer = get_gradcam_target_layer(net, arch)
+            with torch.enable_grad():
+                input_tensor_grad = input_tensor.clone().requires_grad_(True)
+                return generate_gradcam_base64(net, input_tensor_grad, original_image, target_layer=target_layer)
+        else:
+            # Attention Rollout path (ViT-B/16)
+            rollout = AttentionRollout(
+                net,
+                head_fusion="mean",
+                discard_ratio=0.9,
+            )
+            mask    = rollout(input_tensor)           # (14, 14) numpy array
+            overlay = AttentionRollout.overlay(
+                original_image,
+                mask,
+                alpha=0.5,
+                colormap="viridis",                   # cooler palette than jet
+            )
+            buf = io.BytesIO()
+            overlay.save(buf, format="PNG")
+            rollout.remove_hooks()
+            return "data:image/png;base64," + base64.b64encode(
+                buf.getvalue()
+            ).decode()
+    except Exception as e:
+        print(f"[explainability] {arch} failed: {e}")
+        return None
+
 
 @app.post("/api/predict/image")
 @limiter.limit("30/minute")
@@ -159,27 +205,28 @@ async def predict_image(
     prob_fake = probs[0].item()
     prob_real = probs[1].item()
 
-    # Generate Grad-CAM
-    gradcam_b64 = None
-    try:
-        with torch.enable_grad():
-            input_tensor_grad = input_tensor.clone().requires_grad_(True)
-            gradcam_b64 = generate_gradcam_base64(net, input_tensor_grad, img, target_layer=target_layer)
-    except Exception as e:
-        print(f"WARNING: GradCAM generation failed: {e}")
+    # Generate explainability overlay
+    explainability_map = get_explainability_map(net, arch, input_tensor, img)
 
     verdict = "fake" if prob_fake > 0.5 else "real"
     confidence = max(prob_real, prob_fake)
 
+    elapsed_ms = round((time.time() - t0) * 1000, 1)
+
     return {
         "label": verdict,
+        "prediction": verdict,
         "confidence": round(confidence, 4),
         "probabilities": {
             "real": round(prob_real, 4),
             "fake": round(prob_fake, 4)
         },
-        "processing_ms": round((time.time() - t0) * 1000, 1),
-        "gradcam_image": gradcam_b64
+        "processing_ms": elapsed_ms,
+        "inference_time_ms": elapsed_ms,
+        "gradcam_image": explainability_map,
+        "explainability": explainability_map,
+        "explainability_method": "grad_cam" if supports_gradcam(arch) else "attention_rollout",
+        "architecture": arch,
     }
 
 
@@ -288,6 +335,7 @@ async def list_models():
             "loaded":     entry["loaded"],
             "checkpoint": entry["checkpoint"],
             "params":     entry["params"],
+            "explainability_method": "grad_cam" if supports_gradcam(arch) else "attention_rollout",
         }
         for arch, entry in MODEL_REGISTRY.items()
     }
@@ -396,6 +444,7 @@ async def compare_models(file: UploadFile = File(...)):
                 },
                 "inference_time_ms": round(ms, 2),
                 "params": entry["params"],
+                "explainability_method": "grad_cam" if supports_gradcam(arch) else "attention_rollout",
             }
         except Exception as e:
             results[arch] = {"error": str(e)}

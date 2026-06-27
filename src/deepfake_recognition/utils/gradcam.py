@@ -9,7 +9,13 @@ from PIL import Image
 
 
 class GradCAM:
-    def __init__(self, model, target_layer):
+    def __init__(self, model, target_layer=None):
+        if target_layer is None:
+            raise ValueError(
+                "GradCAM received target_layer=None. "
+                "ViT-B/16 uses AttentionRollout, not GradCAM. "
+                "Check supports_gradcam() before constructing GradCAM."
+            )
         self.model = model
         self.target_layer = target_layer
         self.gradients = None

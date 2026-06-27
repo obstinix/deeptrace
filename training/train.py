@@ -151,28 +151,52 @@ def build_scheduler(optimizer, cfg):
 # ──────────────────────────────────────────────────────────────
 # One epoch
 # ──────────────────────────────────────────────────────────────
-def run_epoch(model, loader, criterion, optimizer, scaler, device, train=True):
+def run_epoch(model, loader, criterion, optimizer, scaler, device,
+              train=True, grad_accum_steps=1, grad_clip=None):
     model.train() if train else model.eval()
     total_loss, correct, total = 0.0, 0, 0
     ctx = torch.enable_grad if train else torch.no_grad
     use_autocast = (device.type == "cuda" and scaler is not None)
 
+    if train and optimizer:
+        optimizer.zero_grad()
+
     with ctx():
-        for imgs, labels in loader:
+        for step, (imgs, labels) in enumerate(loader):
             imgs, labels = imgs.to(device), labels.to(device)
             with autocast(enabled=use_autocast):
                 logits = model(imgs)
                 loss   = criterion(logits, labels)
+                if train:
+                    loss = loss / grad_accum_steps
             if train:
-                optimizer.zero_grad()
                 if scaler:
                     scaler.scale(loss).backward()
-                    scaler.step(optimizer)
-                    scaler.update()
                 else:
                     loss.backward()
-                    optimizer.step()
-            total_loss += loss.item() * imgs.size(0)
+
+                # Step only every N batches, or at the end of the epoch
+                if (step + 1) % grad_accum_steps == 0 or (step + 1) == len(loader):
+                    if grad_clip and scaler:
+                        scaler.unscale_(optimizer)
+                        torch.nn.utils.clip_grad_norm_(
+                            model.parameters(), grad_clip
+                        )
+                    if scaler:
+                        scaler.step(optimizer)
+                        scaler.update()
+                    else:
+                        if grad_clip:
+                            torch.nn.utils.clip_grad_norm_(
+                                model.parameters(), grad_clip
+                            )
+                        optimizer.step()
+                    optimizer.zero_grad()
+
+            loss_item = loss.item()
+            if train:
+                loss_item = loss_item * grad_accum_steps
+            total_loss += loss_item * imgs.size(0)
             preds       = logits.argmax(dim=1)
             correct    += (preds == labels).sum().item()
             total      += imgs.size(0)
@@ -275,6 +299,15 @@ def main():
         dropout=cfg["model"].get("dropout", 0.5),
     ).to(device)
 
+    if arch == "vit_b16":
+        # Freeze all layers except block 11, norm, and head to support small checkpoint (<30MB)
+        for name, param in model.named_parameters():
+            if not ("blocks.11." in name or "norm." in name or "head." in name):
+                param.requires_grad = False
+
+    if hasattr(model, "set_grad_checkpointing"):
+        model.set_grad_checkpointing(enable=True)
+
     print(f"[model] {arch} | params: {count_parameters(model):,}")
     criterion = nn.CrossEntropyLoss()
     optimizer = AdamW(model.parameters(),
@@ -285,6 +318,9 @@ def main():
     # GradScaler is only supported/needed for CUDA
     use_amp = cfg["training"].get("mixed_precision") and device.type == "cuda"
     scaler    = GradScaler() if use_amp else None
+
+    accum = cfg["training"].get("gradient_accumulation_steps", 1)
+    clip  = cfg["training"].get("gradient_clip", None)
 
     best_val_acc   = 0.0
     patience_left  = cfg["training"].get("early_stopping_patience", 8)
@@ -298,9 +334,9 @@ def main():
     for epoch in range(1, cfg["training"]["epochs"] + 1):
         t0 = time.time()
         tr_loss, tr_acc = run_epoch(model, train_loader, criterion, optimizer,
-                                    scaler, device, train=True)
+                                    scaler, device, train=True, grad_accum_steps=accum, grad_clip=clip)
         vl_loss, vl_acc = run_epoch(model, val_loader, criterion, None,
-                                    None, device, train=False)
+                                    None, device, train=False, grad_accum_steps=1, grad_clip=None)
         scheduler.step()
         lr = scheduler.get_last_lr()[0]
         elapsed = time.time() - t0
@@ -318,9 +354,14 @@ def main():
             best_val_acc  = vl_acc
             patience_left = cfg["training"]["early_stopping_patience"]
             # Save dict with model_state_dict to match Predictor.from_checkpoint
+            state_dict = model.state_dict()
+            if arch == "vit_b16":
+                # Save only blocks.11, norm, and head weights to keep checkpoint size < 30MB
+                state_dict = {k: v for k, v in state_dict.items() if "blocks.11." in k or "norm." in k or "head." in k}
+
             torch.save({
                 "epoch": epoch,
-                "model_state_dict": model.state_dict(),
+                "model_state_dict": state_dict,
             }, ckpt_path)
             print(f"           ↑ new best ({best_val_acc:.4f}) → saved to {ckpt_path}")
         else:
@@ -339,9 +380,9 @@ def main():
     print("\n[eval] loading best checkpoint for test evaluation …")
     ckpt = torch.load(ckpt_path, map_location=device)
     if isinstance(ckpt, dict) and "model_state_dict" in ckpt:
-        model.load_state_dict(ckpt["model_state_dict"])
+        model.load_state_dict(ckpt["model_state_dict"], strict=False)
     else:
-        model.load_state_dict(ckpt)
+        model.load_state_dict(ckpt, strict=False)
         
     acc, auc, report, cm, fpr, tpr = evaluate(model, test_loader, device, class_to_idx)
 
