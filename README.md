@@ -374,11 +374,11 @@ curl -X POST http://localhost:8000/api/model/reload \
 
 ### Model accuracy (current state)
 
-| Model | Dataset | Val Accuracy | AUC-ROC | Status |
-|---|---|---|---|---|
-| ResNet-18 | Celeb-DF v2 | 100.0% | 1.000 | ✅ Trained |
-| EfficientNet-B0 | Celeb-DF v2 | _planned_ | _planned_ | Not started |
-| ViT-B/16 | Celeb-DF v2 | _planned_ | _planned_ | Not started |
+| Model           | Dataset     | Val Accuracy | AUC-ROC | Params | Status     |
+|-----------------|-------------|--------------|---------|--------|------------|
+| ResNet-18       | Celeb-DF v2 | 100.0%       | 1.000   | 11.3M  | ✅ Trained  |
+| EfficientNet-B0 | Celeb-DF v2 | 100.0%       | 1.000   | 4.0M   | ✅ Trained  |
+| ViT-B/16        | Celeb-DF v2 | pending      | —       | 86M    | 🔄 Planned  |
 
 ---
 

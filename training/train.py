@@ -35,6 +35,10 @@ from torchvision.datasets import ImageFolder
 
 # Import the custom model to ensure state_dict compatibility with Predictor
 from deepfake_recognition.models.resnet import DeepfakeResNet18
+from deepfake_recognition.utils.model_factory import (
+    build_model as factory_build,
+    count_parameters,
+)
 
 
 # ──────────────────────────────────────────────────────────────
@@ -44,6 +48,11 @@ def parse_args():
     p = argparse.ArgumentParser(description="DeepTrace ResNet-18 training")
     p.add_argument("--config", default="training/configs/resnet18.yaml")
     p.add_argument("--data",   default=None, help="Override data root")
+    p.add_argument(
+        "--arch",
+        default=None,
+        help="Override architecture (resnet18 | efficientnet_b0). Default: read from config.",
+    )
     return p.parse_args()
 
 
@@ -255,7 +264,18 @@ def main():
     Path(cfg["logging"]["log_dir"]).mkdir(parents=True, exist_ok=True)
 
     train_loader, val_loader, test_loader, class_to_idx = build_loaders(cfg)
-    model     = build_model(cfg, device)
+    
+    # Determine architecture — CLI flag overrides config
+    arch = args.arch or cfg["model"]["architecture"]
+    cfg["model"]["architecture"] = arch   # normalise for logging
+
+    model = factory_build(
+        architecture=arch,
+        num_classes=cfg["model"]["num_classes"],
+        dropout=cfg["model"].get("dropout", 0.5),
+    ).to(device)
+
+    print(f"[model] {arch} | params: {count_parameters(model):,}")
     criterion = nn.CrossEntropyLoss()
     optimizer = AdamW(model.parameters(),
                       lr=cfg["training"]["learning_rate"],

@@ -189,6 +189,115 @@
             letter-spacing: -0.03em;
             font-weight: 800;
         }
+
+        /* Multi-model additions */
+        .model-selector {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          margin-bottom: 16px;
+        }
+        .selector-label {
+          font-size: 12px;
+          font-family: 'JetBrains Mono', monospace;
+          color: var(--text-secondary, #888);
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          white-space: nowrap;
+        }
+        .selector-pills {
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+        }
+        .model-pill {
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 11px;
+          padding: 4px 12px;
+          border-radius: 20px;
+          border: 1px solid var(--border, #333);
+          background: transparent;
+          color: var(--text-secondary, #aaa);
+          cursor: pointer;
+          transition: all 0.15s ease;
+        }
+        .model-pill:hover {
+          border-color: var(--accent, #00D4FF);
+          color: var(--accent, #00D4FF);
+        }
+        .model-pill.active {
+          background: var(--accent, #00D4FF);
+          border-color: var(--accent, #00D4FF);
+          color: #000;
+          font-weight: 600;
+        }
+        .model-pill.unavailable {
+          opacity: 0.35;
+          cursor: not-allowed;
+        }
+
+        .compare-drop {
+          border: 1px dashed var(--border, #333);
+          border-radius: 8px;
+          padding: 32px;
+          text-align: center;
+          cursor: pointer;
+          margin-bottom: 24px;
+          transition: border-color 0.15s;
+        }
+        .compare-drop:hover { border-color: var(--accent, #00D4FF); }
+        .compare-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+          gap: 16px;
+          margin-bottom: 20px;
+        }
+        .compare-card {
+          background: var(--surface, #111);
+          border: 1px solid var(--border, #222);
+          border-radius: 8px;
+          padding: 16px;
+        }
+        .compare-card.verdict-fake { border-color: #ff4d4d; }
+        .compare-card.verdict-real { border-color: #00d4a0; }
+        .compare-arch {
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 11px;
+          color: var(--text-secondary, #888);
+          letter-spacing: 0.08em;
+          margin-bottom: 8px;
+        }
+        .compare-verdict {
+          font-family: 'Space Grotesk', sans-serif;
+          font-size: 22px;
+          font-weight: 700;
+          letter-spacing: 0.04em;
+        }
+        .compare-verdict.fake { color: #ff4d4d; }
+        .compare-verdict.real { color: #00d4a0; }
+        .compare-conf {
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 13px;
+          color: var(--text-secondary, #aaa);
+          margin-top: 4px;
+        }
+        .compare-meta {
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 11px;
+          color: var(--text-muted, #555);
+          margin-top: 10px;
+          border-top: 1px solid var(--border, #222);
+          padding-top: 10px;
+        }
+        .compare-consensus {
+          text-align: center;
+          padding: 16px;
+          border-radius: 8px;
+          background: var(--surface, #111);
+          border: 1px solid var(--border, #222);
+          font-family: 'Space Grotesk', sans-serif;
+          font-size: 15px;
+        }
     </style>
 </head>
 <body class="bg-surface font-body-md text-on-surface antialiased transition-colors duration-300 overflow-x-hidden">
@@ -201,6 +310,7 @@
 <a class="px-md py-1.5 font-body-md text-body-md text-on-surface-variant hover:text-primary rounded-full transition-all duration-200" href="#section-detection-lab">Detection Lab</a>
 <a class="px-md py-1.5 font-body-md text-body-md text-on-surface-variant hover:text-primary rounded-full transition-all duration-200" href="#section-models">Models</a>
 <a class="px-md py-1.5 font-body-md text-body-md text-on-surface-variant hover:text-primary rounded-full transition-all duration-200" href="#section-performance">Performance</a>
+<a class="px-md py-1.5 font-body-md text-body-md text-on-surface-variant hover:text-primary rounded-full transition-all duration-200" href="#section-compare" data-tab="compare">Compare</a>
 </div>
 <div class="flex items-center gap-md">
 <!-- GitHub Button (Nav) -->
@@ -221,6 +331,7 @@
 </div>
 </nav>
 <main class="pt-[140px] pb-xl px-margin-mobile md:px-margin-desktop max-w-[1440px] mx-auto">
+<div id="standard-content">
 <!-- Hero Section -->
 <section id="section-intelligence" class="grid grid-cols-12 gap-gutter items-center mb-xl scroll-mt-24">
 <div class="col-span-12 lg:col-span-6 space-y-md">
@@ -243,6 +354,13 @@
 <div class="flex justify-between items-center mb-lg">
 <span class="font-label-caps text-label-caps text-primary">Forensic Upload</span>
 <span class="font-data-sm text-data-sm text-on-surface-variant px-sm py-xs recessed border border-outline-variant/20 rounded">ID: 992-04-X</span>
+</div>
+<!-- Model Selector -->
+<div class="model-selector" id="dt-model-selector">
+  <label class="selector-label">Detection model</label>
+  <div class="selector-pills" id="dt-model-pills">
+    <!-- Populated dynamically from /api/models -->
+  </div>
 </div>
 <!-- Upload Dropzone (Recessed) -->
 <input type="file" id="media-upload" class="hidden" accept="image/jpeg,image/png,image/webp,video/mp4,video/avi,video/quicktime" />
@@ -427,6 +545,28 @@
 </div>
 </div>
 </section>
+</div>
+
+<!-- ── COMPARE TAB PANEL ────────────────────────────── -->
+<div class="tab-panel" id="tab-compare" style="display:none">
+  <div class="compare-header mb-lg">
+    <h2 class="font-display text-[32px] leading-none text-primary tracking-tighter mb-sm">Model Comparison</h2>
+    <p class="font-body-md text-body-md text-on-surface-variant">Upload an image to run all loaded models simultaneously and compare results side-by-side.</p>
+  </div>
+
+  <div class="drop-zone compare-drop bg-surface-container-low/50 border border-dashed border-outline-variant/30 rounded-lg p-lg text-center cursor-pointer hover:border-primary/50 transition-colors" id="dt-compare-drop">
+    <span class="material-symbols-outlined text-outline text-[48px] mb-md block">add_circle</span>
+    <span class="font-body-md text-body-md text-on-surface block" id="dt-compare-drop-text">Drop image here or click to browse</span>
+    <input type="file" id="dt-compare-file" accept="image/*" style="display:none">
+  </div>
+
+  <div class="compare-results" id="dt-compare-results" style="display:none">
+    <div class="compare-grid" id="dt-compare-grid">
+      <!-- cards injected by JS -->
+    </div>
+    <div class="compare-consensus mt-lg p-md rounded-lg elevated text-center" id="dt-compare-consensus"></div>
+  </div>
+</div>
 </main>
 <!-- Footer Shell -->
 <footer class="w-full py-xl px-margin-mobile md:px-margin-desktop flex flex-col md:flex-row justify-between items-center gap-md bg-surface-container-lowest border-t border-outline-variant/30 transition-colors duration-300">
@@ -618,6 +758,179 @@
                 document.getElementById('status-indicator').classList.replace('bg-primary', 'bg-[red]');
             });
 
+        // ── Model selector and comparison namespace ─────────────────────────
+        window.DeepTrace = window.DeepTrace || {};
+
+        Object.assign(window.DeepTrace, {
+            _selectedModel: 'resnet18',
+
+            async initModelSelector() {
+                try {
+                    const res  = await fetch(`${API_BASE_URL}/api/models`);
+                    const data = await res.json();
+                    const pills = document.getElementById('dt-model-pills');
+                    if (!pills) return;
+
+                    pills.innerHTML = '';
+                    Object.entries(data).forEach(([arch, info]) => {
+                        const pill = document.createElement('button');
+                        pill.className = 'model-pill' +
+                            (arch === window.DeepTrace._selectedModel ? ' active' : '') +
+                            (!info.loaded ? ' unavailable' : '');
+                        pill.dataset.arch = arch;
+                        pill.title = info.loaded
+                            ? `${(info.params / 1e6).toFixed(1)}M params · ${info.checkpoint}`
+                            : `Checkpoint not found: ${info.checkpoint}`;
+                        pill.textContent = arch.replace('_', '-');
+                        if (info.loaded) {
+                            pill.addEventListener('click', () => {
+                                document.querySelectorAll('.model-pill').forEach(p => p.classList.remove('active'));
+                                pill.classList.add('active');
+                                window.DeepTrace._selectedModel = arch;
+                            });
+                        }
+                        pills.appendChild(pill);
+                    });
+                } catch (e) {
+                    console.warn('[DeepTrace] model selector init failed:', e);
+                }
+            },
+
+            async runCompare(file) {
+                const resultsEl = document.getElementById('dt-compare-results');
+                const gridEl    = document.getElementById('dt-compare-grid');
+                const consensusEl = document.getElementById('dt-compare-consensus');
+
+                gridEl.innerHTML = '<div style="color:var(--text-secondary);font-family:\'JetBrains Mono\',monospace;font-size:12px">Running all models…</div>';
+                resultsEl.style.display = 'block';
+
+                const form = new FormData();
+                form.append('file', file);
+
+                try {
+                    const res  = await fetch(`${API_BASE_URL}/api/compare`, { method: 'POST', body: form });
+                    const data = await res.json();
+
+                    gridEl.innerHTML = '';
+                    Object.entries(data.models).forEach(([arch, result]) => {
+                        const card = document.createElement('div');
+                        const v    = result.prediction || 'error';
+                        card.className = `compare-card verdict-${v}`;
+
+                        if (result.error) {
+                            card.innerHTML = `
+                                <div class="compare-arch">${arch.replace('_','-')}</div>
+                                <div class="compare-verdict" style="color:#666">—</div>
+                                <div class="compare-conf">${result.error}</div>`;
+                        } else {
+                            const pct = Math.round((result.confidence || 0) * 100);
+                            const ms  = result.inference_time_ms?.toFixed(1) || '—';
+                            const params = result.params
+                                ? `${(result.params / 1e6).toFixed(1)}M params`
+                                : '';
+                            card.innerHTML = `
+                                <div class="compare-arch">${arch.replace('_','-')}</div>
+                                <div class="compare-verdict ${v}">${v.toUpperCase()}</div>
+                                <div class="compare-conf">${pct}% confidence</div>
+                                <div class="compare-meta">
+                                    ${ms}ms · ${params}<br>
+                                    fake ${(result.probabilities?.fake * 100).toFixed(1)}%
+                                    / real ${(result.probabilities?.real * 100).toFixed(1)}%
+                                </div>`;
+                        }
+                        gridEl.appendChild(card);
+                    });
+
+                    const icon = data.agreement ? '✓' : '⚠';
+                    const msg  = data.agreement
+                        ? `All models agree: <strong>${(data.consensus || '').toUpperCase()}</strong>`
+                        : `Models disagree — consensus: <strong>${(data.consensus || '').toUpperCase()}</strong>`;
+                    consensusEl.innerHTML = `${icon} ${msg}`;
+                    consensusEl.style.borderColor = data.agreement
+                        ? (data.consensus === 'fake' ? '#ff4d4d' : '#00d4a0')
+                        : '#f5a623';
+
+                } catch (e) {
+                    gridEl.innerHTML = `<div style="color:#ff4d4d">Compare failed: ${e.message}</div>`;
+                }
+            },
+
+            initCompareTab() {
+                const drop    = document.getElementById('dt-compare-drop');
+                const fileIn  = document.getElementById('dt-compare-file');
+                if (!drop || !fileIn) return;
+
+                drop.addEventListener('click', () => fileIn.click());
+                drop.addEventListener('dragover', e => {
+                    e.preventDefault();
+                    drop.style.borderColor = 'var(--accent, #00D4FF)';
+                });
+                drop.addEventListener('dragleave', () => {
+                    drop.style.borderColor = '';
+                });
+                drop.addEventListener('drop', e => {
+                    e.preventDefault();
+                    drop.style.borderColor = '';
+                    const f = e.dataTransfer.files[0];
+                    if (f && f.type.startsWith('image/')) window.DeepTrace.runCompare(f);
+                });
+                fileIn.addEventListener('change', () => {
+                    if (fileIn.files[0]) window.DeepTrace.runCompare(fileIn.files[0]);
+                });
+            },
+        });
+
+        // Wire up compare tab switching
+        const compareLink = document.querySelector('nav a[data-tab="compare"]');
+        const standardLinks = document.querySelectorAll('nav a[href^="#section-"]');
+
+        function showCompareTab() {
+            document.getElementById('standard-content').style.display = 'none';
+            document.getElementById('tab-compare').style.display = 'block';
+
+            document.querySelectorAll('nav a').forEach(link => {
+                link.classList.remove('nav-link-active', 'text-primary');
+                link.classList.add('text-on-surface-variant');
+            });
+            compareLink.classList.add('nav-link-active', 'text-primary');
+            compareLink.classList.remove('text-on-surface-variant');
+        }
+
+        function showStandardTab(targetId) {
+            document.getElementById('standard-content').style.display = 'block';
+            document.getElementById('tab-compare').style.display = 'none';
+
+            const target = document.getElementById(targetId);
+            if (target) {
+                target.scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+
+        if (compareLink) {
+            compareLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                showCompareTab();
+            });
+        }
+
+        standardLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                const href = link.getAttribute('href');
+                if (href.startsWith('#section-')) {
+                    e.preventDefault();
+                    showStandardTab(href.substring(1));
+                }
+            });
+        });
+
+        // Initialize selectors and compare tab
+        window.DeepTrace.initModelSelector();
+        window.DeepTrace.initCompareTab();
+
+        if (window.location.hash === '#section-compare' || window.location.hash === '#compare') {
+            showCompareTab();
+        }
+
         uploadInput.addEventListener('change', async (e) => {
             const file = e.target.files[0];
             if (!file) return;
@@ -629,7 +942,8 @@
             confidenceText.textContent = '--%';
 
             const isVideo = file.type.startsWith('video');
-            const endpoint = isVideo ? '/api/predict/video' : '/api/predict/image';
+            const baseEndpoint = isVideo ? '/api/predict/video' : '/api/predict/image';
+            const endpoint = `${baseEndpoint}?model=${window.DeepTrace._selectedModel}`;
             
             document.getElementById('diagnostics-cluster').classList.remove('hidden');
             document.getElementById('gradcam-container').classList.add('hidden');

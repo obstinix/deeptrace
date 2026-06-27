@@ -1,0 +1,45 @@
+# training/configs/efficientnet_b0.yaml
+model:
+  architecture: efficientnet_b0
+  pretrained: true
+  num_classes: 2
+  dropout: 0.4            # EfficientNet already has internal dropout; keep lower
+
+data:
+  train_dir: data/frames/train
+  val_dir:   data/frames/val
+  test_dir:  data/frames/test
+  image_size: 224
+  num_workers: 0
+
+training:
+  epochs: 50
+  batch_size: 32          # EfficientNet-B0 is smaller than ResNet-18; fits fine
+  learning_rate: 5.0e-5   # lower LR — EfficientNet is more sensitive
+  weight_decay: 1.0e-4
+  scheduler: cosine
+  warmup_epochs: 5        # longer warmup for compound scaling models
+  early_stopping_patience: 10
+  class_weights: auto
+  mixed_precision: true
+
+augmentation:
+  horizontal_flip: true
+  random_crop: true
+  color_jitter:
+    brightness: 0.3
+    contrast:   0.3
+    saturation: 0.2
+    hue:        0.05
+  random_erasing: 0.25
+  normalize:
+    mean: [0.485, 0.456, 0.406]
+    std:  [0.229, 0.224, 0.225]
+
+logging:
+  checkpoint_dir: checkpoints/efficientnet_b0
+  log_dir:        logs/efficientnet_b0
+  save_best_only: true
+  eval_report:    logs/efficientnet_b0/eval_report.json
+  confusion_matrix: logs/efficientnet_b0/confusion_matrix.png
+  roc_curve:        logs/efficientnet_b0/roc_curve.png

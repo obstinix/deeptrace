@@ -54,7 +54,7 @@ class GradCAM:
             cam += w_i * activations[i]
 
         cam = F.relu(cam)
-        cam = cv2.resize(cam.cpu().numpy(), (w, h))
+        cam = cv2.resize(cam.detach().cpu().numpy(), (w, h))
 
         # Normalize
         cam = cam - np.min(cam)
@@ -79,11 +79,12 @@ def _resolve_target_layer(model):
 
     return None
 
-def generate_gradcam_base64(model, input_tensor, original_image):
+def generate_gradcam_base64(model, input_tensor, original_image, target_layer=None):
     """
     Generate Grad-CAM heatmap and overlay on original image, returning base64 PNG.
     """
-    target_layer = _resolve_target_layer(model)
+    if target_layer is None:
+        target_layer = _resolve_target_layer(model)
     if target_layer is None:
         return None
 
