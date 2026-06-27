@@ -32,6 +32,7 @@ from deepfake_recognition.utils.model_factory import (
 from deepfake_recognition.utils.gradcam import generate_gradcam_base64
 from deepfake_recognition.inference.predictor import Predictor
 from deepfake_recognition.utils.attention_rollout import AttentionRollout
+from deepfake_recognition.utils.face_pipeline import FacePipeline, FaceDetection
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
 
@@ -42,6 +43,17 @@ MODEL_REGISTRY: dict = {
 }
 
 DEFAULT_MODEL = "resnet18"
+
+# ── Face pipeline (singleton — loaded once at startup) ──────────────────────
+# model_selection=1 (full-range) handles photos, not just close-up selfies
+FACE_PIPELINE = FacePipeline(
+    model_selection=1,
+    min_detection_confidence=0.5,
+    margin=0.30,
+    output_size=224,
+    align=True,
+    max_faces=10,   # prevent DoS on images with many faces
+)
 
 from typing import Optional
 
@@ -144,89 +156,220 @@ def get_explainability_map(
         return None
 
 
+import torchvision.transforms as T
+from PIL import Image as PILImage
+
+# Standard inference transform — same normalisation as training
+_INFER_TRANSFORM = T.Compose([
+    T.Resize(256),
+    T.CenterCrop(224),
+    T.ToTensor(),
+    T.Normalize(mean=[0.485, 0.456, 0.406],
+                std=[0.229, 0.224, 0.225]),
+])
+
+
+def pil_to_tensor(img: PILImage.Image) -> torch.Tensor:
+    """Convert a PIL image to a normalised (1, 3, 224, 224) tensor on DEVICE."""
+    return _INFER_TRANSFORM(img.convert("RGB")).unsqueeze(0).to(DEVICE)
+
+
+def image_to_base64(img: PILImage.Image, fmt: str = "JPEG") -> str:
+    """Encode a PIL image as a base64 data-URI string."""
+    buf = io.BytesIO()
+    img.save(buf, format=fmt, quality=85)
+    mime = "image/jpeg" if fmt == "JPEG" else "image/png"
+    return f"data:{mime};base64," + base64.b64encode(buf.getvalue()).decode()
+
+
+def _run_inference_on_crop(
+    net: torch.nn.Module,
+    arch: str,
+    crop: PILImage.Image,
+    face_det: "FaceDetection",
+) -> dict:
+    """
+    Run inference on a single pre-cropped face image.
+
+    Returns a dict with prediction, confidence, probabilities,
+    explainability map, and timing.
+    """
+    from src.deepfake_recognition.utils.model_factory import (
+        supports_gradcam, get_gradcam_target_layer
+    )
+
+    tensor = pil_to_tensor(crop)
+
+    t0     = time.perf_counter()
+    with torch.no_grad():
+        logits = net(tensor)
+        probs  = torch.softmax(logits, dim=1)[0]
+    ms = (time.perf_counter() - t0) * 1000
+
+    # Determine class indices — align with training class_to_idx
+    # ImageFolder sorts alphabetically: fake=0, real=1
+    fake_prob = probs[0].item()
+    real_prob = probs[1].item()
+    verdict   = "fake" if fake_prob > 0.5 else "real"
+    confidence = round(max(fake_prob, real_prob), 4)
+
+    # Explainability
+    explainability_method = "grad_cam" if supports_gradcam(arch) else "attention_rollout"
+    explainability = None
+    try:
+        explainability = get_explainability_map(
+            net, arch, tensor, crop
+        )
+    except Exception as e:
+        print(f"[explainability] {arch} face#{face_det.face_idx}: {e}")
+
+    return {
+        "face_idx":    face_det.face_idx,
+        "bbox":        face_det.to_dict()["bbox"],
+        "keypoints":   face_det.to_dict()["keypoints"],
+        "detection_confidence": face_det.confidence,
+        "prediction":  verdict,
+        "confidence":  confidence,
+        "probabilities": {
+            "fake": round(fake_prob, 4),
+            "real": round(real_prob, 4),
+        },
+        "explainability":        explainability,
+        "explainability_method": explainability_method,
+        "inference_time_ms":     round(ms, 2),
+        "crop_b64":              image_to_base64(crop),
+    }
+
+
 @app.post("/api/predict/image")
 @limiter.limit("30/minute")
 async def predict_image(
     request: Request,
-    file: UploadFile = File(...),
-    model: str = Query(default=DEFAULT_MODEL),
-    use_tta: bool = False
+    file:  UploadFile = File(...),
+    model: str        = Query(default=DEFAULT_MODEL),
+    face_detect: bool = Query(default=True,
+        description="Run face detection before inference. "
+                    "Falls back to whole-frame if no face found."),
+    max_faces: int    = Query(default=5,
+        description="Maximum number of faces to analyse per image."),
 ):
     # Backward compatibility with test_predict_no_model_503
     if request.app.state.predictor is None:
         raise HTTPException(503, "No model loaded. Run training/train.py first.")
+    t0_total = time.perf_counter()
 
     if file.content_type not in ALLOWED_IMAGE_TYPES:
         raise HTTPException(415, f"Unsupported type: {file.content_type}")
 
-    data = await file.read()
-    if len(data) > MAX_IMAGE_BYTES:
-        raise HTTPException(413, f"File too large ({len(data)//1024}KB). Max 10MB.")
+    contents = await file.read()
+    if len(contents) > MAX_IMAGE_BYTES:
+        raise HTTPException(413, f"File too large ({len(contents)//1024}KB). Max 10MB.")
 
-    arch = model.lower()
+    arch  = model.lower()
     entry = MODEL_REGISTRY.get(arch)
     if not entry or not entry["loaded"]:
         raise HTTPException(
             status_code=503,
-            detail=f"Model '{arch}' not loaded. Check checkpoint at {SUPPORTED_ARCHITECTURES.get(arch, '?')}"
+            detail=f"Model '{arch}' not loaded. "
+                   f"Check checkpoint at: {SUPPORTED_ARCHITECTURES.get(arch, '?')}"
         )
-
     net = entry["model"]
-    target_layer = get_gradcam_target_layer(net, arch)
 
+    # Read and decode the uploaded image
     try:
-        from PIL import Image
-        img = Image.open(io.BytesIO(data)).convert("RGB")
+        pil_image = PILImage.open(io.BytesIO(contents)).convert("RGB")
+    except Exception:
+        raise HTTPException(status_code=400, detail="Could not decode image.")
+
+    # ── Face detection path ────────────────────────────────────────────────
+    if face_detect:
+        # Temporarily override max_faces for this request
+        FACE_PIPELINE.max_faces = max_faces
+        detections, crops = FACE_PIPELINE.process(pil_image)
+
+        if detections:
+            # Draw boxes on the original image for the frontend
+            annotated = FACE_PIPELINE.draw_boxes(pil_image, detections)
+            annotated_b64 = image_to_base64(annotated)
+
+            # Run inference on each face crop
+            face_results = [
+                _run_inference_on_crop(net, arch, crop, det)
+                for crop, det in zip(crops, detections)
+            ]
+
+            # Aggregate verdict: fake if ANY face is fake
+            any_fake     = any(r["prediction"] == "fake" for r in face_results)
+            agg_verdict  = "fake" if any_fake else "real"
+            agg_conf     = max(r["confidence"] for r in face_results)
+            fake_faces   = [r["face_idx"] for r in face_results
+                            if r["prediction"] == "fake"]
+
+            elapsed_ms = round((time.perf_counter() - t0_total) * 1000, 1)
+            return {
+                # Top-level aggregate — backward compatible
+                "label":       agg_verdict,
+                "prediction":  agg_verdict,
+                "confidence":  agg_conf,
+                "architecture": arch,
+                "processing_ms": elapsed_ms,
+                "inference_time_ms": elapsed_ms,
+
+                # Face-level detail
+                "mode":            "face_detect",
+                "faces_detected":  len(detections),
+                "faces_analysed":  len(face_results),
+                "fake_face_indices": fake_faces,
+                "face_results":    face_results,
+                "annotated_image": annotated_b64,
+
+                # Backward-compat: first face explainability at top level
+                "gradcam_image":         face_results[0]["explainability"],
+                "explainability":        face_results[0]["explainability"],
+                "explainability_method": face_results[0]["explainability_method"],
+                "probabilities":         face_results[0]["probabilities"],
+            }
+
+    # ── Whole-frame fallback ───────────────────────────────────────────────
+    # Used when face_detect=False OR when no face was detected
+    tensor = pil_to_tensor(pil_image)
+
+    t0 = time.perf_counter()
+    with torch.no_grad():
+        logits = net(tensor)
+        probs  = torch.softmax(logits, dim=1)[0]
+    ms = (time.perf_counter() - t0) * 1000
+
+    fake_prob = probs[0].item()
+    real_prob = probs[1].item()
+    verdict   = "fake" if fake_prob > 0.5 else "real"
+
+    exp_method = "grad_cam" if supports_gradcam(arch) else "attention_rollout"
+    explainability = None
+    try:
+        explainability = get_explainability_map(
+            net, arch, tensor, pil_image
+        )
     except Exception as e:
-        raise HTTPException(422, f"Cannot decode image: {e}") from e
+        print(f"[explainability] whole-frame {arch}: {e}")
 
-    t0 = time.time()
-
-    from torchvision import transforms as T
-    import torch.nn.functional as F
-
-    tf = T.Compose([
-        T.Resize(256), T.CenterCrop(224), T.ToTensor(),
-        T.Normalize(mean=[0.485, 0.456, 0.406],
-                    std=[0.229, 0.224, 0.225]),
-    ])
-    input_tensor = tf(img).unsqueeze(0).to(DEVICE)
-
-    if use_tta:
-        from deepfake_recognition.data.transforms import get_tta_transforms
-        tta_tfs = get_tta_transforms(224)
-        with torch.no_grad():
-            logits = torch.stack([net(t_tf(img).unsqueeze(0).to(DEVICE)) for t_tf in tta_tfs]).mean(0)
-    else:
-        with torch.no_grad():
-            logits = net(input_tensor)
-
-    probs = F.softmax(logits, dim=1)[0]
-    prob_fake = probs[0].item()
-    prob_real = probs[1].item()
-
-    # Generate explainability overlay
-    explainability_map = get_explainability_map(net, arch, input_tensor, img)
-
-    verdict = "fake" if prob_fake > 0.5 else "real"
-    confidence = max(prob_real, prob_fake)
-
-    elapsed_ms = round((time.time() - t0) * 1000, 1)
-
+    elapsed_ms = round((time.perf_counter() - t0_total) * 1000, 1)
     return {
-        "label": verdict,
-        "prediction": verdict,
-        "confidence": round(confidence, 4),
-        "probabilities": {
-            "real": round(prob_real, 4),
-            "fake": round(prob_fake, 4)
-        },
-        "processing_ms": elapsed_ms,
-        "inference_time_ms": elapsed_ms,
-        "gradcam_image": explainability_map,
-        "explainability": explainability_map,
-        "explainability_method": "grad_cam" if supports_gradcam(arch) else "attention_rollout",
+        "label":        verdict,
+        "prediction":  verdict,
+        "confidence":  round(max(fake_prob, real_prob), 4),
         "architecture": arch,
+        "mode":         "whole_frame",
+        "faces_detected": 0,
+        "probabilities": {
+            "fake": round(fake_prob, 4),
+            "real": round(real_prob, 4),
+        },
+        "explainability":        explainability,
+        "gradcam_image":         explainability,
+        "explainability_method": exp_method,
+        "processing_ms":         elapsed_ms,
+        "inference_time_ms":     elapsed_ms,
     }
 
 
@@ -390,17 +533,32 @@ async def reload_model(request: Request):
 
 
 @app.post("/api/compare")
-async def compare_models(file: UploadFile = File(...)):
-    """
-    Run all loaded models on the same image.
-    Returns per-model prediction + confidence + inference time.
-    """
+async def compare_models(
+    file: UploadFile = File(...),
+    face_detect: bool = Query(default=True),
+    max_faces: int    = Query(default=3),
+):
     if file.content_type not in ALLOWED_IMAGE_TYPES:
         raise HTTPException(415, f"Unsupported type: {file.content_type}")
         
     contents = await file.read()
     if len(contents) > MAX_IMAGE_BYTES:
         raise HTTPException(413, f"File too large. Max 10MB.")
+
+    # Read and decode the uploaded image
+    try:
+        pil_image = PILImage.open(io.BytesIO(contents)).convert("RGB")
+    except Exception:
+        raise HTTPException(status_code=400, detail="Could not decode image.")
+
+    # Detect once — share crops across all models
+    detections, crops = [], []
+    if face_detect:
+        FACE_PIPELINE.max_faces = max_faces
+        detections, crops = FACE_PIPELINE.process(pil_image)
+
+    use_face_crops = bool(detections)
+    inputs = crops if use_face_crops else [pil_image]
 
     results = {}
     for arch, entry in MODEL_REGISTRY.items():
@@ -409,53 +567,43 @@ async def compare_models(file: UploadFile = File(...)):
             continue
 
         net = entry["model"]
-        try:
-            from PIL import Image
-            img = Image.open(io.BytesIO(contents)).convert("RGB")
-            
-            from torchvision import transforms as T
-            import torch.nn.functional as F
-            
-            tf = T.Compose([
-                T.Resize(256), T.CenterCrop(224), T.ToTensor(),
-                T.Normalize(mean=[0.485, 0.456, 0.406],
-                            std=[0.229, 0.224, 0.225]),
-            ])
-            tensor = tf(img).unsqueeze(0).to(DEVICE)
+        model_faces = []
 
-            t0 = time.perf_counter()
-            with torch.no_grad():
-                logits = net(tensor)
-                probs  = torch.softmax(logits, dim=1)[0]
-            ms = (time.perf_counter() - t0) * 1000
+        for i, inp in enumerate(inputs):
+            det = detections[i] if use_face_crops else None
+            res = _run_inference_on_crop(net, arch, inp,
+                      det if det else FaceDetection(0,0,0,0,1.0,face_idx=0))
+            model_faces.append(res)
 
-            fake_idx = 0
-            real_idx = 1
-            fake_prob = probs[fake_idx].item()
-            real_prob = probs[real_idx].item()
-            verdict   = "fake" if fake_prob > 0.5 else "real"
+        # Aggregate per-model
+        any_fake  = any(r["prediction"] == "fake" for r in model_faces)
+        agg_conf  = max(r["confidence"] for r in model_faces)
+        results[arch] = {
+            "prediction":           "fake" if any_fake else "real",
+            "confidence":           agg_conf,
+            "face_results":         model_faces,
+            "params":               entry["params"],
+            "explainability_method": ("grad_cam" if supports_gradcam(arch)
+                                       else "attention_rollout"),
+        }
 
-            results[arch] = {
-                "prediction":    verdict,
-                "confidence":    round(max(fake_prob, real_prob), 4),
-                "probabilities": {
-                    "fake": round(fake_prob, 4),
-                    "real": round(real_prob, 4),
-                },
-                "inference_time_ms": round(ms, 2),
-                "params": entry["params"],
-                "explainability_method": "grad_cam" if supports_gradcam(arch) else "attention_rollout",
-            }
-        except Exception as e:
-            results[arch] = {"error": str(e)}
-
+    # Consensus
     verdicts = [v["prediction"] for v in results.values() if "prediction" in v]
     consensus = max(set(verdicts), key=verdicts.count) if verdicts else "unknown"
 
+    # Annotated image (shared across models)
+    annotated_b64 = None
+    if detections:
+        annotated = FACE_PIPELINE.draw_boxes(pil_image, detections)
+        annotated_b64 = image_to_base64(annotated)
+
     return {
-        "models":    results,
-        "consensus": consensus,
-        "agreement": len(set(verdicts)) == 1 if verdicts else False,
+        "models":          results,
+        "consensus":       consensus,
+        "agreement":       len(set(verdicts)) == 1 if verdicts else False,
+        "faces_detected":  len(detections),
+        "mode":            "face_detect" if use_face_crops else "whole_frame",
+        "annotated_image": annotated_b64,
     }
 
 # ── System / Health / Config Endpoints ────────────────────────────────────────
