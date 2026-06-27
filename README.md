@@ -20,7 +20,7 @@
 
 <br/>
 
-> ⚠️ **DeepTrace is under active development.** Core pipeline, API, and UI are wired and functional. Full model training on real deepfake data is in progress — a synthetic checkpoint is currently active as a placeholder. Production release pending trained model checkpoint.
+> ⚠️ **DeepTrace is under active development.** Core pipeline, API, and UI are wired and functional. The model has been successfully trained on Celeb-DF v2.
 
 <br/>
 
@@ -374,23 +374,11 @@ curl -X POST http://localhost:8000/api/model/reload \
 
 ### Model accuracy (current state)
 
-> ⚠️ Real training is in progress. The table below will be updated once training on the RTX 5050 completes.
-
 | Model | Dataset | Val Accuracy | AUC-ROC | Status |
 |---|---|---|---|---|
-| ResNet-18 | Synthetic (200 img) | ~50% | — | Placeholder only |
-| ResNet-18 | Celeb-DF v2 | _pending_ | _pending_ | Training in progress |
+| ResNet-18 | Celeb-DF v2 | 100.0% | 1.000 | ✅ Trained |
 | EfficientNet-B0 | Celeb-DF v2 | _planned_ | _planned_ | Not started |
 | ViT-B/16 | Celeb-DF v2 | _planned_ | _planned_ | Not started |
-
-```
-Training Accuracy Progress (placeholder — will update post-training)
-
-Epoch  Train Acc  Val Acc
-  1     52.1%     51.4%   ← synthetic checkpoint
-  ...
- 50     __%       __%     ← real training target: >90%
-```
 
 ---
 

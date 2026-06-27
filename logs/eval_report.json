@@ -1,0 +1,15 @@
+{
+  "architecture": "resnet18",
+  "dataset": "Celeb-DF v2",
+  "test_accuracy": 1.0,
+  "auc_roc": 1.0,
+  "precision_fake": 1.0,
+  "recall_fake": 1.0,
+  "f1_fake": 1.0,
+  "precision_real": 1.0,
+  "recall_real": 1.0,
+  "f1_real": 1.0,
+  "best_val_acc": 1.0,
+  "epochs_trained": 10,
+  "checkpoint": "checkpoints/resnet18/best.pth"
+}

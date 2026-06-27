@@ -1,38 +1,46 @@
+# training/configs/resnet18.yaml
 model:
-  name: resnet18
-  pretrained: true
+  architecture: resnet18
+  pretrained: true            # start from ImageNet weights
   num_classes: 2
-  dropout: 0.3
-  freeze_backbone_epochs: 2
+  dropout: 0.5                # regularisation on the fc head
 
 data:
-  root_dir: data/frames      # change this to your extracted frames path
-  img_size: 224
-  batch_size: 64
+  train_dir: data/frames/train
+  val_dir:   data/frames/val
+  test_dir:  data/frames/test
+  image_size: 224
   num_workers: 0
-  val_ratio: 0.15
-  test_ratio: 0.10
-  seed: 42
 
 training:
-  epochs: 1
-  optimizer: adamw
-  lr: 3.0e-4
+  epochs: 50
+  batch_size: 32              # reduce to 16 if OOM on 8 GB VRAM
+  learning_rate: 1.0e-4       # conservative start for fine-tuning
   weight_decay: 1.0e-4
-  scheduler: cosine
+  scheduler: cosine           # cosine annealing over all epochs
   warmup_epochs: 3
-  early_stopping_patience: 8
-  gradient_clip: 1.0
-  mixed_precision: true
-  label_smoothing: 0.05
-  use_class_weights: true
+  early_stopping_patience: 8  # stop if val_acc doesn't improve for 8 epochs
+  class_weights: auto         # compute from class frequencies at runtime
+  mixed_precision: true       # torch.autocast — halves memory, ~30% faster
+
+augmentation:
+  # Applied to TRAIN split only
+  horizontal_flip: true
+  random_crop: true           # 224 from 256 resize
+  color_jitter:
+    brightness: 0.3
+    contrast:   0.3
+    saturation: 0.2
+    hue:        0.05
+  random_erasing: 0.3         # simulates compression artefacts
+  normalize:
+    mean: [0.485, 0.456, 0.406]
+    std:  [0.229, 0.224, 0.225]
 
 logging:
-  use_wandb: false          # set true if you have wandb API key
-  project: deepfake-recognition
-  save_top_k: 3
-  checkpoint_dir: checkpoints/resnet18/
-
-huggingface:
-  repo_id: obstinix/deepfake-resnet18
-  push_on_best: false       # set true after training to upload checkpoint
+  checkpoint_dir: checkpoints/resnet18
+  log_dir:        logs
+  save_best_only: true        # only overwrite best.pth if val_acc improves
+  eval_report:    logs/eval_report.json
+  confusion_matrix: logs/confusion_matrix.png
+  roc_curve:        logs/roc_curve.png
