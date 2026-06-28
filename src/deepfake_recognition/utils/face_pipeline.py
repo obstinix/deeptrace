@@ -106,6 +106,99 @@ class FaceDetection:
 
 
 # ---------------------------------------------------------------------------
+# NMS and size filtering
+# ---------------------------------------------------------------------------
+
+def nms(
+    detections: List["FaceDetection"],
+    iou_threshold: float = 0.45,
+) -> List["FaceDetection"]:
+    """
+    Non-Maximum Suppression — remove duplicate / heavily-overlapping detections.
+    Keeps the highest-confidence box when two boxes overlap above iou_threshold.
+
+    Args:
+        detections:    List of FaceDetection, sorted by confidence descending.
+        iou_threshold: Boxes with IoU above this are considered duplicates.
+
+    Returns:
+        Filtered list, still sorted by confidence descending.
+    """
+    if len(detections) <= 1:
+        return detections
+
+    # Sort by confidence descending
+    dets = sorted(detections, key=lambda d: d.confidence, reverse=True)
+    keep = []
+
+    while dets:
+        best = dets.pop(0)
+        keep.append(best)
+        remaining = []
+        for d in dets:
+            iou = _iou(best, d)
+            if iou < iou_threshold:
+                remaining.append(d)
+        dets = remaining
+
+    # Re-index
+    for i, f in enumerate(keep):
+        f.face_idx = i
+
+    return keep
+
+
+def _iou(a: "FaceDetection", b: "FaceDetection") -> float:
+    """Intersection-over-Union for two FaceDetection bounding boxes."""
+    ix1 = max(a.x1, b.x1)
+    iy1 = max(a.y1, b.y1)
+    ix2 = min(a.x2, b.x2)
+    iy2 = min(a.y2, b.y2)
+
+    inter_w = max(0.0, ix2 - ix1)
+    inter_h = max(0.0, iy2 - iy1)
+    inter   = inter_w * inter_h
+
+    if inter == 0.0:
+        return 0.0
+
+    union = a.area + b.area - inter
+    return inter / (union + 1e-6)
+
+
+def filter_by_size(
+    detections: List["FaceDetection"],
+    image_width: int,
+    image_height: int,
+    min_face_fraction: float = 0.03,
+    min_face_pixels: int = 40,
+) -> List["FaceDetection"]:
+    """
+    Remove faces that are too small to carry meaningful deepfake artefacts.
+
+    A face is kept if BOTH conditions hold:
+      - Its shorter side >= min_face_pixels (absolute)
+      - Its area >= min_face_fraction * image area (relative)
+
+    Args:
+        min_face_fraction: Minimum ratio of face area to image area.
+                           0.03 = face must be at least 3% of the image.
+        min_face_pixels:   Minimum side length in pixels (absolute).
+    """
+    image_area = image_width * image_height
+    kept = []
+    for det in detections:
+        short_side = min(det.width, det.height)
+        face_frac  = det.area / (image_area + 1e-6)
+        if short_side >= min_face_pixels and face_frac >= min_face_fraction:
+            kept.append(det)
+    # Re-index
+    for i, f in enumerate(kept):
+        f.face_idx = i
+    return kept
+
+
+# ---------------------------------------------------------------------------
 # FacePipeline
 # ---------------------------------------------------------------------------
 
@@ -133,6 +226,9 @@ class FacePipeline:
         output_size: int = 224,
         align: bool = True,
         max_faces: Optional[int] = None,
+        iou_threshold: float = 0.45,
+        min_face_fraction: float = 0.03,
+        min_face_pixels: int = 40,
     ):
         if not _MEDIAPIPE_AVAILABLE:
             raise ImportError(
@@ -145,6 +241,9 @@ class FacePipeline:
         self.output_size              = output_size
         self.align                    = align
         self.max_faces                = max_faces
+        self.iou_threshold            = iou_threshold
+        self.min_face_fraction        = min_face_fraction
+        self.min_face_pixels          = min_face_pixels
         self._detector: Optional[object] = None
 
     # ------------------------------------------------------------------ init
@@ -183,8 +282,6 @@ class FacePipeline:
 
         faces = []
         for idx, det in enumerate(results.detections):
-            if self.max_faces is not None and idx >= self.max_faces:
-                break
 
             bb    = det.location_data.relative_bounding_box
             score = det.score[0] if det.score else 0.0
@@ -215,10 +312,24 @@ class FacePipeline:
                 face_idx=idx,
             ))
 
-        # Sort by area descending (largest face = most prominent)
-        faces.sort(key=lambda f: f.area, reverse=True)
+        # Apply size filter — drop faces too small to carry deepfake signal
+        img_h, img_w = img_rgb.shape[:2]
+        faces = filter_by_size(
+            faces,
+            image_width=img_w,
+            image_height=img_h,
+            min_face_fraction=self.min_face_fraction,
+            min_face_pixels=self.min_face_pixels,
+        )
 
-        # Re-index after sort
+        # Apply NMS — remove overlapping duplicate detections
+        faces = nms(faces, iou_threshold=self.iou_threshold)
+
+        # Cap to max_faces AFTER NMS (largest faces survive NMS and are sorted by confidence)
+        if self.max_faces is not None:
+            faces = faces[:self.max_faces]
+
+        # Final re-index
         for i, f in enumerate(faces):
             f.face_idx = i
 
@@ -352,28 +463,44 @@ class FacePipeline:
     @staticmethod
     def draw_boxes(
         image: Image.Image,
-        detections: List[FaceDetection],
-        color: Tuple[int, int, int] = (0, 212, 255),   # DeepTrace cyan
+        detections: List["FaceDetection"],
+        verdicts: Optional[dict] = None,      # {face_idx: "fake"|"real"}
+        color_fake: Tuple[int,int,int] = (255, 77, 77),    # red
+        color_real: Tuple[int,int,int] = (0, 212, 160),    # teal
+        color_unknown: Tuple[int,int,int] = (0, 212, 255), # cyan (default)
         thickness: int = 2,
         draw_keypoints: bool = True,
     ) -> Image.Image:
         """
         Draw bounding boxes (and optionally keypoints) on a PIL image.
         Returns a new PIL image — does not modify the original.
+
+        If verdicts is provided, boxes are coloured by prediction:
+          fake → red, real → teal, unknown → cyan.
         """
         img_np = np.array(image.convert("RGB"))
 
         for det in detections:
+            if verdicts and det.face_idx in verdicts:
+                color = color_fake if verdicts[det.face_idx] == "fake" else color_real
+            else:
+                color = color_unknown
+
             cv2.rectangle(
                 img_np,
                 (int(det.x1), int(det.y1)),
                 (int(det.x2), int(det.y2)),
                 color, thickness,
             )
-            # Face index label
+
+            label = f"#{det.face_idx}"
+            if verdicts and det.face_idx in verdicts:
+                v = verdicts[det.face_idx]
+                label += f" {v.upper()}"
+
             cv2.putText(
                 img_np,
-                f"#{det.face_idx}  {det.confidence:.2f}",
+                label,
                 (int(det.x1), max(0, int(det.y1) - 6)),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.45, color, 1, cv2.LINE_AA,
             )
@@ -381,7 +508,6 @@ class FacePipeline:
                 for kp_name in ("right_eye", "left_eye", "nose_tip",
                                 "mouth_right", "mouth_left"):
                     pt = getattr(det.keypoints, kp_name)
-                    cv2.circle(img_np, (int(pt[0]), int(pt[1])),
-                               3, color, -1)
+                    cv2.circle(img_np, (int(pt[0]), int(pt[1])), 3, color, -1)
 
         return Image.fromarray(img_np)

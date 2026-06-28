@@ -33,6 +33,11 @@ from deepfake_recognition.utils.gradcam import generate_gradcam_base64
 from deepfake_recognition.inference.predictor import Predictor
 from deepfake_recognition.utils.attention_rollout import AttentionRollout
 from deepfake_recognition.utils.face_pipeline import FacePipeline, FaceDetection
+from deepfake_recognition.utils.multi_face import (
+    aggregate_verdict,
+    build_group_response,
+    VerdictStrategy,
+)
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
 
@@ -241,6 +246,71 @@ def _run_inference_on_crop(
     }
 
 
+def _run_batched_inference(
+    net: torch.nn.Module,
+    arch: str,
+    crops: list,
+    detections: list,
+    include_explainability: bool = False,
+) -> list:
+    """
+    Run inference on all face crops in a SINGLE forward pass (batched).
+    Dramatically faster than serial inference for 4+ faces.
+
+    Falls back to serial inference for explainability maps (Grad-CAM /
+    Attention Rollout require individual inputs).
+    """
+    if not crops:
+        return []
+
+    # Build batch tensor
+    tensors = torch.cat([pil_to_tensor(c) for c in crops], dim=0)  # (N, 3, 224, 224)
+
+    t0 = time.perf_counter()
+    with torch.no_grad():
+        logits_batch = net(tensors)                       # (N, 2)
+        probs_batch  = torch.softmax(logits_batch, dim=1) # (N, 2)
+    total_ms = (time.perf_counter() - t0) * 1000
+
+    results = []
+    for i, (det, crop) in enumerate(zip(detections, crops)):
+        fake_prob = probs_batch[i, 0].item()
+        real_prob = probs_batch[i, 1].item()
+        verdict   = "fake" if fake_prob > 0.5 else "real"
+        per_face_ms = round(total_ms / len(crops), 2)
+
+        explainability        = None
+        explainability_method = "grad_cam" if supports_gradcam(arch) else "attention_rollout"
+        if include_explainability:
+            # Explainability requires individual tensor — run separately
+            try:
+                t = pil_to_tensor(crop)
+                explainability = get_explainability_map(
+                    net, arch, t, crop
+                )
+            except Exception as e:
+                print(f"[explainability] face#{det.face_idx}: {e}")
+
+        results.append({
+            "face_idx":    det.face_idx,
+            "bbox":        det.to_dict()["bbox"],
+            "keypoints":   det.to_dict()["keypoints"],
+            "detection_confidence": det.confidence,
+            "prediction":  verdict,
+            "confidence":  round(max(fake_prob, real_prob), 4),
+            "probabilities": {
+                "fake": round(fake_prob, 4),
+                "real": round(real_prob, 4),
+            },
+            "explainability":        explainability,
+            "explainability_method": explainability_method,
+            "inference_time_ms":     per_face_ms,
+            "crop_b64":              image_to_base64(crop),
+        })
+
+    return results
+
+
 @app.post("/api/predict/image")
 @limiter.limit("30/minute")
 async def predict_image(
@@ -292,11 +362,11 @@ async def predict_image(
             annotated = FACE_PIPELINE.draw_boxes(pil_image, detections)
             annotated_b64 = image_to_base64(annotated)
 
-            # Run inference on each face crop
-            face_results = [
-                _run_inference_on_crop(net, arch, crop, det)
-                for crop, det in zip(crops, detections)
-            ]
+            # Run batched inference on face crops
+            face_results = _run_batched_inference(
+                net, arch, crops, detections,
+                include_explainability=True,
+            )
 
             # Aggregate verdict: fake if ANY face is fake
             any_fake     = any(r["prediction"] == "fake" for r in face_results)
@@ -371,6 +441,159 @@ async def predict_image(
         "processing_ms":         elapsed_ms,
         "inference_time_ms":     elapsed_ms,
     }
+
+
+@app.post("/api/predict/group")
+async def predict_group(
+    file: UploadFile = File(...),
+
+    # Model selection
+    model: str = Query(default=DEFAULT_MODEL),
+
+    # Face detection params
+    min_confidence: float = Query(
+        default=0.5,
+        description="Minimum MediaPipe face detection confidence (0-1).",
+    ),
+    min_face_fraction: float = Query(
+        default=0.03,
+        description="Minimum face area as a fraction of image area. "
+                    "Smaller faces are ignored. 0.03 = 3% of image.",
+    ),
+    iou_threshold: float = Query(
+        default=0.45,
+        description="IoU threshold for NMS duplicate removal.",
+    ),
+    max_faces: int = Query(
+        default=20,
+        description="Hard cap on faces to analyse per image.",
+    ),
+
+    # Verdict aggregation
+    strategy: str = Query(
+        default="any_fake",
+        description="Verdict strategy: any_fake | majority | weighted | confident",
+    ),
+    confidence_threshold: float = Query(
+        default=0.70,
+        description="Used only by 'confident' strategy: fake_prob threshold.",
+    ),
+
+    # Response size controls
+    include_crops: bool = Query(
+        default=True,
+        description="Include base64 face crop images in the response.",
+    ),
+    include_explainability: bool = Query(
+        default=False,
+        description="Include Grad-CAM / Attention Rollout maps. "
+                    "Adds significant response size for many faces.",
+    ),
+):
+    """
+    Analyse a group photo. Detects all faces, runs deepfake inference on each,
+    and returns a per-face verdict plus a configurable image-level aggregate.
+    """
+    # ── Model lookup ────────────────────────────────────────────────────────
+    arch  = model.lower()
+    entry = MODEL_REGISTRY.get(arch)
+    if not entry or not entry["loaded"]:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Model '{arch}' not loaded. "
+                   f"Check checkpoint: {SUPPORTED_ARCHITECTURES.get(arch, '?')}"
+        )
+    net = entry["model"]
+
+    # ── Image decode ────────────────────────────────────────────────────────
+    contents = await file.read()
+    try:
+        pil_image = PILImage.open(io.BytesIO(contents)).convert("RGB")
+    except Exception:
+        raise HTTPException(status_code=400, detail="Could not decode image.")
+
+    img_w, img_h = pil_image.size
+
+    # ── Face detection with per-request params ───────────────────────────────
+    pipeline = FacePipeline(
+        model_selection=1,
+        min_detection_confidence=min_confidence,
+        margin=0.30,
+        output_size=224,
+        align=True,
+        max_faces=max_faces,
+        iou_threshold=iou_threshold,
+        min_face_fraction=min_face_fraction,
+        min_face_pixels=40,
+    )
+
+    try:
+        detections, crops = pipeline.process(pil_image)
+    finally:
+        pipeline.close()
+
+    if not detections:
+        # No-face fallback: whole-frame inference
+        tensor = pil_to_tensor(pil_image)
+        t0 = time.perf_counter()
+        with torch.no_grad():
+            logits = net(tensor)
+            probs  = torch.softmax(logits, dim=1)[0]
+        ms = (time.perf_counter() - t0) * 1000
+
+        fake_p = probs[0].item()
+        real_p = probs[1].item()
+        verdict = "fake" if fake_p > 0.5 else "real"
+
+        return {
+            "prediction":     verdict,
+            "confidence":     round(max(fake_p, real_p), 4),
+            "architecture":   arch,
+            "mode":           "whole_frame_fallback",
+            "faces_detected": 0,
+            "faces_analysed": 0,
+            "face_results":   [],
+            "aggregate": {
+                "verdict":             verdict,
+                "strategy":            strategy,
+                "total_faces":         0,
+                "fake_count":          0,
+                "real_count":          0,
+                "fake_face_indices":   [],
+                "aggregate_confidence": round(max(fake_p, real_p), 4),
+                "dissenting_faces":    [],
+                "unanimity":           True,
+            },
+            "annotated_image": None,
+            "image_width":  img_w,
+            "image_height": img_h,
+            "warning": "No faces detected. Whole-frame inference used as fallback.",
+        }
+
+    # ── Batched inference ───────────────────────────────────────────────────
+    face_results = _run_batched_inference(
+        net, arch, crops, detections,
+        include_explainability=include_explainability,
+    )
+
+    # ── Annotated image with verdict-coloured boxes ─────────────────────────
+    verdicts_map = {r["face_idx"]: r["prediction"] for r in face_results}
+    annotated    = FacePipeline.draw_boxes(pil_image, detections, verdicts=verdicts_map)
+    annotated_b64 = image_to_base64(annotated)
+
+    # ── Build response ──────────────────────────────────────────────────────
+    return build_group_response(
+        face_results=face_results,
+        detections=detections,
+        annotated_b64=annotated_b64,
+        arch=arch,
+        image_width=img_w,
+        image_height=img_h,
+        strategy=strategy,
+        confidence_threshold=confidence_threshold,
+        include_crops=include_crops,
+        include_explainability=include_explainability,
+    )
 
 
 @app.post("/api/predict/video")
@@ -567,17 +790,23 @@ async def compare_models(
             continue
 
         net = entry["model"]
-        model_faces = []
 
-        for i, inp in enumerate(inputs):
-            det = detections[i] if use_face_crops else None
-            res = _run_inference_on_crop(net, arch, inp,
-                      det if det else FaceDetection(0,0,0,0,1.0,face_idx=0))
-            model_faces.append(res)
+        if use_face_crops:
+            model_faces = _run_batched_inference(
+                net, arch, crops, detections,
+                include_explainability=False,
+            )
+        else:
+            # Single whole-frame inference
+            model_faces = _run_batched_inference(
+                net, arch, [pil_image],
+                [FaceDetection(0, 0, float(pil_image.size[0]), float(pil_image.size[1]), 1.0, face_idx=0)],
+                include_explainability=False,
+            )
 
         # Aggregate per-model
         any_fake  = any(r["prediction"] == "fake" for r in model_faces)
-        agg_conf  = max(r["confidence"] for r in model_faces)
+        agg_conf  = max(r["confidence"] for r in model_faces) if model_faces else 0.0
         results[arch] = {
             "prediction":           "fake" if any_fake else "real",
             "confidence":           agg_conf,

@@ -369,6 +369,189 @@
           border-radius: 50%;
           background: var(--accent, #00D4FF);
         }
+
+        /* ── Group tab controls ──────────────────────────────────────── */
+        .group-controls {
+          display: flex;
+          align-items: center;
+          gap: 20px;
+          flex-wrap: wrap;
+          margin-bottom: 16px;
+          padding: 12px 16px;
+          background: var(--surface-container, #201f1f);
+          border: 1px solid var(--outline-variant, #444748);
+          border-radius: 8px;
+        }
+        .control-group {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .control-label {
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 11px;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          color: var(--on-surface-variant, #c4c7c8);
+          white-space: nowrap;
+        }
+        .control-select,
+        .control-input {
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 12px;
+          background: var(--surface, #131313);
+          border: 1px solid var(--outline-variant, #444748);
+          color: var(--on-surface, #e5e2e1);
+          border-radius: 4px;
+          padding: 4px 8px;
+        }
+        .control-input { width: 56px; }
+        .control-unit {
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 11px;
+          color: var(--on-surface-variant, #c4c7c8);
+        }
+
+        /* ── Workspace layout ────────────────────────────────────────── */
+        .group-workspace {
+          display: grid;
+          grid-template-columns: 1fr 280px;
+          gap: 16px;
+          align-items: start;
+        }
+        @media (max-width: 700px) {
+          .group-workspace { grid-template-columns: 1fr; }
+        }
+
+        /* ── Canvas + hitboxes ───────────────────────────────────────── */
+        .group-canvas-wrap {
+          position: relative;
+          border-radius: 8px;
+          overflow: hidden;
+          border: 1px solid var(--outline-variant, #444748);
+        }
+        .group-annotated-img {
+          display: block;
+          width: 100%;
+          height: auto;
+        }
+        .group-hitboxes {
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+        }
+        .group-hitbox {
+          position: absolute;
+          cursor: pointer;
+          pointer-events: all;
+          border-radius: 2px;
+          transition: background 0.12s;
+        }
+        .group-hitbox:hover { background: rgba(0, 212, 255, 0.12); }
+
+        /* ── Sidebar ─────────────────────────────────────────────────── */
+        .group-sidebar {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+        .group-aggregate {
+          background: var(--surface-container, #201f1f);
+          border: 1px solid var(--outline-variant, #444748);
+          border-radius: 8px;
+          padding: 16px;
+        }
+        .group-agg-verdict {
+          font-family: 'Space Grotesk', sans-serif;
+          font-size: 28px;
+          font-weight: 700;
+          letter-spacing: 0.04em;
+          margin-bottom: 4px;
+        }
+        .group-agg-verdict.fake { color: #ff4d4d; }
+        .group-agg-verdict.real { color: #00d4a0; }
+        .group-agg-meta {
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 11px;
+          color: var(--on-surface-variant, #c4c7c8);
+          line-height: 1.6;
+        }
+        .group-agg-bar {
+          display: flex;
+          height: 4px;
+          border-radius: 2px;
+          overflow: hidden;
+          margin: 10px 0 6px;
+          background: var(--outline-variant, #444748);
+        }
+        .group-agg-bar-fake { background: #ff4d4d; transition: width 0.3s; }
+        .group-agg-bar-real { background: #00d4a0; transition: width 0.3s; }
+
+        .group-face-list {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          max-height: 420px;
+          overflow-y: auto;
+        }
+        .group-face-row {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 8px 10px;
+          background: var(--surface-container, #201f1f);
+          border: 1px solid var(--outline-variant, #444748);
+          border-radius: 6px;
+          cursor: pointer;
+          transition: border-color 0.12s;
+        }
+        .group-face-row:hover { border-color: var(--primary, #fff); }
+        .group-face-row.verdict-fake { border-left: 3px solid #ff4d4d; }
+        .group-face-row.verdict-real { border-left: 3px solid #00d4a0; }
+        .group-face-thumb {
+          width: 36px; height: 36px;
+          border-radius: 4px;
+          object-fit: cover;
+          flex-shrink: 0;
+        }
+        .group-face-row-info { flex: 1; min-width: 0; }
+        .group-face-row-label {
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 10px;
+          color: var(--on-surface-variant, #c4c7c8);
+        }
+        .group-face-row-verdict {
+          font-family: 'Space Grotesk', sans-serif;
+          font-size: 13px;
+          font-weight: 600;
+        }
+        .group-face-row-verdict.fake { color: #ff4d4d; }
+        .group-face-row-verdict.real { color: #00d4a0; }
+
+        /* ── Face detail slide-out ───────────────────────────────────── */
+        .face-detail-panel {
+          position: fixed;
+          top: 0; right: 0;
+          width: 340px; height: 100vh;
+          background: var(--surface-container, #201f1f);
+          border-left: 1px solid var(--outline-variant, #444748);
+          z-index: 200;
+          overflow-y: auto;
+          padding: 20px;
+          box-shadow: -4px 0 24px rgba(0,0,0,0.5);
+          transition: transform 0.2s ease;
+        }
+        .face-detail-close {
+          position: absolute;
+          top: 16px; right: 16px;
+          background: none;
+          border: none;
+          color: var(--on-surface-variant, #c4c7c8);
+          font-size: 18px;
+          cursor: pointer;
+          padding: 4px 8px;
+        }
+        .face-detail-close:hover { color: var(--on-surface, #e5e2e1); }
     </style>
 </head>
 <body class="bg-surface font-body-md text-on-surface antialiased transition-colors duration-300 overflow-x-hidden">
@@ -382,6 +565,7 @@
 <a class="px-md py-1.5 font-body-md text-body-md text-on-surface-variant hover:text-primary rounded-full transition-all duration-200" href="#section-models">Models</a>
 <a class="px-md py-1.5 font-body-md text-body-md text-on-surface-variant hover:text-primary rounded-full transition-all duration-200" href="#section-performance">Performance</a>
 <a class="px-md py-1.5 font-body-md text-body-md text-on-surface-variant hover:text-primary rounded-full transition-all duration-200" href="#section-compare" data-tab="compare">Compare</a>
+<a class="px-md py-1.5 font-body-md text-body-md text-on-surface-variant hover:text-primary rounded-full transition-all duration-200" href="#section-group" data-tab="group">Group</a>
 </div>
 <div class="flex items-center gap-md">
 <!-- GitHub Button (Nav) -->
@@ -652,6 +836,69 @@
     </div>
     <div class="compare-consensus mt-lg p-md rounded-lg elevated text-center" id="dt-compare-consensus"></div>
   </div>
+</div>
+
+<!-- ── GROUP PHOTO TAB ─────────────────────────────────────────────── -->
+<div class="tab-panel" id="tab-group" style="display:none">
+
+  <!-- Controls bar -->
+  <div class="group-controls">
+    <div class="control-group">
+      <label class="control-label">Strategy</label>
+      <select id="dt-group-strategy" class="control-select">
+        <option value="any_fake">Any fake</option>
+        <option value="majority">Majority</option>
+        <option value="weighted" selected>Weighted</option>
+        <option value="confident">Confident</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <label class="control-label">Max faces</label>
+      <input id="dt-group-maxfaces" type="number" class="control-input"
+             value="20" min="1" max="50">
+    </div>
+    <div class="control-group">
+      <label class="control-label">Min size</label>
+      <input id="dt-group-minsize" type="number" class="control-input"
+             value="3" min="1" max="20" step="1">
+      <span class="control-unit">%</span>
+    </div>
+    <div class="control-group">
+      <label class="control-label">Crops</label>
+      <input id="dt-group-crops" type="checkbox" class="control-check" checked>
+    </div>
+  </div>
+
+  <!-- Drop zone -->
+  <div class="drop-zone group-drop bg-surface-container-low/50 border border-dashed border-outline-variant/30 rounded-lg p-lg text-center cursor-pointer hover:border-primary/50 transition-colors" id="dt-group-drop">
+    <span class="material-symbols-outlined text-outline text-[48px] mb-md block">add_circle</span>
+    <span class="font-body-md text-body-md text-on-surface block">Drop group photo or click to browse</span>
+    <input type="file" id="dt-group-file" accept="image/*" style="display:none">
+  </div>
+
+  <!-- Spatial canvas + sidebar -->
+  <div class="group-workspace" id="dt-group-workspace" style="display:none">
+
+    <!-- Left: annotated image as interactive canvas -->
+    <div class="group-canvas-wrap">
+      <img id="dt-group-annotated" class="group-annotated-img" alt="Annotated">
+      <!-- Invisible hit-areas rendered over the image by JS -->
+      <div id="dt-group-hitboxes" class="group-hitboxes"></div>
+    </div>
+
+    <!-- Right: aggregate verdict + face list -->
+    <div class="group-sidebar">
+      <div class="group-aggregate" id="dt-group-aggregate"></div>
+      <div class="group-face-list" id="dt-group-face-list"></div>
+    </div>
+  </div>
+
+  <!-- Face detail slide-out panel -->
+  <div class="face-detail-panel" id="dt-face-detail" style="display:none">
+    <button class="face-detail-close" id="dt-face-detail-close">✕</button>
+    <div class="face-detail-content" id="dt-face-detail-content"></div>
+  </div>
+
 </div>
 </main>
 <!-- Footer Shell -->
@@ -977,6 +1224,205 @@
                     if (fileIn.files[0]) window.DeepTrace.runCompare(fileIn.files[0]);
                 });
             },
+
+            // ── Group tab methods ────────────────────────────────────
+            _groupData: null,
+
+            async runGroup(file) {
+                const workspace   = document.getElementById('dt-group-workspace');
+                const annotated   = document.getElementById('dt-group-annotated');
+                const hitboxes    = document.getElementById('dt-group-hitboxes');
+                const aggregateEl = document.getElementById('dt-group-aggregate');
+                const faceListEl  = document.getElementById('dt-group-face-list');
+                if (!workspace) return;
+
+                workspace.style.display = 'none';
+                aggregateEl.innerHTML = '<div style="color:var(--on-surface-variant);font-family:\'JetBrains Mono\',monospace;font-size:12px">Detecting faces…</div>';
+
+                const strategy  = document.getElementById('dt-group-strategy')?.value || 'weighted';
+                const maxFaces  = document.getElementById('dt-group-maxfaces')?.value || '20';
+                const minSize   = document.getElementById('dt-group-minsize')?.value  || '3';
+                const inclCrops = document.getElementById('dt-group-crops')?.checked ?? true;
+
+                const form = new FormData();
+                form.append('file', file);
+
+                const model = window.DeepTrace._selectedModel || 'resnet18';
+                const url   = `/api/predict/group?model=${model}`
+                            + `&strategy=${strategy}`
+                            + `&max_faces=${maxFaces}`
+                            + `&min_face_fraction=${parseFloat(minSize) / 100}`
+                            + `&include_crops=${inclCrops}`
+                            + `&include_explainability=false`;
+
+                try {
+                    const res  = await fetch(url, { method: 'POST', body: form });
+                    const data = await res.json();
+                    window.DeepTrace._groupData = data;
+
+                    // Annotated image
+                    if (data.annotated_image && annotated) {
+                        annotated.src = data.annotated_image;
+                        annotated.onload = () => window.DeepTrace._renderHitboxes(data);
+                    }
+
+                    // Aggregate verdict panel
+                    window.DeepTrace._renderGroupAggregate(data, aggregateEl);
+
+                    // Face list (sidebar)
+                    window.DeepTrace._renderGroupFaceList(data, faceListEl);
+
+                    workspace.style.display = '';
+
+                } catch (e) {
+                    aggregateEl.innerHTML = `<div style="color:#ff4d4d">Group analysis failed: ${e.message}</div>`;
+                }
+            },
+
+            _renderGroupAggregate(data, el) {
+                const agg     = data.aggregate || {};
+                const verdict = agg.verdict || data.prediction || 'unknown';
+                const nFake   = agg.fake_count || 0;
+                const nReal   = agg.real_count || 0;
+                const nTotal  = agg.total_faces || data.faces_analysed || 0;
+                const conf    = Math.round((agg.aggregate_confidence || 0) * 100);
+                const pctFake = nTotal > 0 ? Math.round((nFake / nTotal) * 100) : 0;
+                const pctReal = 100 - pctFake;
+
+                el.innerHTML = `
+                  <div class="group-agg-verdict ${verdict}">${verdict.toUpperCase()}</div>
+                  <div class="group-agg-bar">
+                    <div class="group-agg-bar-fake" style="width:${pctFake}%"></div>
+                    <div class="group-agg-bar-real" style="width:${pctReal}%"></div>
+                  </div>
+                  <div class="group-agg-meta">
+                    ${nFake} fake · ${nReal} real · ${nTotal} faces<br>
+                    confidence: ${conf}%<br>
+                    strategy: ${agg.strategy || '—'}<br>
+                    ${agg.unanimity ? '✓ unanimous' : `⚠ ${agg.dissenting_faces?.length || 0} dissenting`}
+                    ${data.warning ? `<br><span style="color:#f5a623">⚠ ${data.warning}</span>` : ''}
+                  </div>
+                `;
+            },
+
+            _renderGroupFaceList(data, el) {
+                el.innerHTML = '';
+                const faces = data.face_results || [];
+                if (faces.length === 0) {
+                    el.innerHTML = '<div style="color:var(--on-surface-variant);font-size:12px">No faces analysed.</div>';
+                    return;
+                }
+                faces.forEach(face => {
+                    const row = document.createElement('div');
+                    row.className = `group-face-row verdict-${face.prediction}`;
+                    row.dataset.faceIdx = face.face_idx;
+
+                    const thumbSrc = face.crop_b64 || '';
+                    const pct      = Math.round((face.confidence || 0) * 100);
+
+                    row.innerHTML = `
+                        ${thumbSrc ? `<img class="group-face-thumb" src="${thumbSrc}" alt="Face ${face.face_idx}">` : ''}
+                        <div class="group-face-row-info">
+                          <div class="group-face-row-label">Face #${face.face_idx}</div>
+                          <div class="group-face-row-verdict ${face.prediction}">
+                            ${face.prediction.toUpperCase()} · ${pct}%
+                          </div>
+                        </div>
+                    `;
+                    row.addEventListener('click', () => window.DeepTrace._showFaceDetail(face));
+                    el.appendChild(row);
+                });
+            },
+
+            _renderHitboxes(data) {
+                const container  = document.getElementById('dt-group-hitboxes');
+                const imgEl      = document.getElementById('dt-group-annotated');
+                if (!container || !imgEl) return;
+
+                container.innerHTML = '';
+
+                (data.face_results || []).forEach(face => {
+                    const spatial = face.spatial || {};
+                    if (!spatial.nx1 && spatial.nx1 !== 0) return;
+
+                    const box = document.createElement('div');
+                    box.className = 'group-hitbox';
+                    box.style.left   = `${spatial.nx1 * 100}%`;
+                    box.style.top    = `${spatial.ny1 * 100}%`;
+                    box.style.width  = `${(spatial.nx2 - spatial.nx1) * 100}%`;
+                    box.style.height = `${(spatial.ny2 - spatial.ny1) * 100}%`;
+                    box.title        = `Face #${face.face_idx} — ${face.prediction?.toUpperCase()}`;
+                    box.addEventListener('click', () => window.DeepTrace._showFaceDetail(face));
+                    container.appendChild(box);
+                });
+            },
+
+            _showFaceDetail(face) {
+                const panel   = document.getElementById('dt-face-detail');
+                const content = document.getElementById('dt-face-detail-content');
+                if (!panel || !content) return;
+
+                const pct  = Math.round((face.confidence || 0) * 100);
+                const fakePct = Math.round((face.probabilities?.fake || 0) * 100);
+                const realPct = Math.round((face.probabilities?.real || 0) * 100);
+
+                content.innerHTML = `
+                  <h3 style="font-family:'Space Grotesk',sans-serif;margin:0 0 12px">
+                    Face #${face.face_idx}
+                  </h3>
+                  ${face.crop_b64
+                    ? `<img src="${face.crop_b64}" style="width:100%;border-radius:6px;margin-bottom:12px">`
+                    : ''}
+                  <div style="font-family:'Space Grotesk',sans-serif;font-size:24px;
+                              font-weight:700;color:${face.prediction==='fake'?'#ff4d4d':'#00d4a0'};
+                              margin-bottom:8px">
+                    ${(face.prediction||'').toUpperCase()}
+                  </div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:12px;
+                              color:var(--on-surface-variant,#c4c7c8);line-height:1.8">
+                    confidence: ${pct}%<br>
+                    fake prob: ${fakePct}%<br>
+                    real prob: ${realPct}%<br>
+                    detect conf: ${Math.round((face.detection_confidence||0)*100)}%<br>
+                    inference: ${face.inference_time_ms?.toFixed(1)||'—'}ms<br>
+                    bbox: (${face.bbox?.x1},${face.bbox?.y1}) → (${face.bbox?.x2},${face.bbox?.y2})<br>
+                    size: ${face.spatial?.size_category || '—'}
+                  </div>
+                  ${face.explainability
+                    ? `<img src="${face.explainability}"
+                           style="width:100%;border-radius:6px;margin-top:12px"
+                           alt="${face.explainability_method||'explainability'} map">`
+                    : ''}
+                `;
+
+                panel.style.display = '';
+            },
+
+            initGroupTab() {
+                const drop    = document.getElementById('dt-group-drop');
+                const fileIn  = document.getElementById('dt-group-file');
+                const close   = document.getElementById('dt-face-detail-close');
+                if (!drop || !fileIn) return;
+
+                drop.addEventListener('click', () => fileIn.click());
+                drop.addEventListener('dragover', e => {
+                    e.preventDefault();
+                    drop.style.borderColor = 'var(--primary, #fff)';
+                });
+                drop.addEventListener('dragleave', () => { drop.style.borderColor = ''; });
+                drop.addEventListener('drop', e => {
+                    e.preventDefault();
+                    drop.style.borderColor = '';
+                    const f = e.dataTransfer.files[0];
+                    if (f && f.type.startsWith('image/')) window.DeepTrace.runGroup(f);
+                });
+                fileIn.addEventListener('change', () => {
+                    if (fileIn.files[0]) window.DeepTrace.runGroup(fileIn.files[0]);
+                });
+                close?.addEventListener('click', () => {
+                    document.getElementById('dt-face-detail').style.display = 'none';
+                });
+            },
         });
 
         // Wire up compare tab switching
@@ -986,6 +1432,8 @@
         function showCompareTab() {
             document.getElementById('standard-content').style.display = 'none';
             document.getElementById('tab-compare').style.display = 'block';
+            const groupPanel = document.getElementById('tab-group');
+            if (groupPanel) groupPanel.style.display = 'none';
 
             document.querySelectorAll('nav a').forEach(link => {
                 link.classList.remove('nav-link-active', 'text-primary');
@@ -995,9 +1443,28 @@
             compareLink.classList.remove('text-on-surface-variant');
         }
 
+        function showGroupTab() {
+            document.getElementById('standard-content').style.display = 'none';
+            document.getElementById('tab-compare').style.display = 'none';
+            const groupPanel = document.getElementById('tab-group');
+            if (groupPanel) groupPanel.style.display = 'block';
+
+            document.querySelectorAll('nav a').forEach(link => {
+                link.classList.remove('nav-link-active', 'text-primary');
+                link.classList.add('text-on-surface-variant');
+            });
+            const groupLink = document.querySelector('nav a[data-tab="group"]');
+            if (groupLink) {
+                groupLink.classList.add('nav-link-active', 'text-primary');
+                groupLink.classList.remove('text-on-surface-variant');
+            }
+        }
+
         function showStandardTab(targetId) {
             document.getElementById('standard-content').style.display = 'block';
             document.getElementById('tab-compare').style.display = 'none';
+            const groupPanel = document.getElementById('tab-group');
+            if (groupPanel) groupPanel.style.display = 'none';
 
             const target = document.getElementById(targetId);
             if (target) {
@@ -1022,12 +1489,24 @@
             });
         });
 
+        const groupLink = document.querySelector('nav a[data-tab="group"]');
+        if (groupLink) {
+            groupLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                showGroupTab();
+            });
+        }
+
         // Initialize selectors and compare tab
         window.DeepTrace.initModelSelector();
         window.DeepTrace.initCompareTab();
+        window.DeepTrace.initGroupTab();
 
         if (window.location.hash === '#section-compare' || window.location.hash === '#compare') {
             showCompareTab();
+        }
+        if (window.location.hash === '#section-group' || window.location.hash === '#group') {
+            showGroupTab();
         }
 
         uploadInput.addEventListener('change', async (e) => {
