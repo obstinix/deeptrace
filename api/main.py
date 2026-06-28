@@ -38,8 +38,17 @@ from deepfake_recognition.utils.multi_face import (
     build_group_response,
     VerdictStrategy,
 )
+from src.deepfake_recognition.audio.audio_pipeline import AudioPipeline, AudioResult
+from src.deepfake_recognition.audio.audio_fusion   import fuse_verdicts, FusionStrategy
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
+
+# ── Audio pipeline (singleton) ───────────────────────────────────────────────
+AUDIO_PIPELINE = AudioPipeline(
+    checkpoint_path="checkpoints/aasist/best.pth",
+    device=torch.device("cpu"),   # CPU is fast enough — saves GPU VRAM
+    aggregate="mean",
+)
 
 # Registry of supported architectures and their active states
 MODEL_REGISTRY: dict = {
@@ -94,6 +103,9 @@ async def lifespan(app: FastAPI):
     # Load all available checkpoints
     for arch in SUPPORTED_ARCHITECTURES:
         _load_arch(arch)
+    
+    # Load audio pipeline
+    AUDIO_PIPELINE.load()
     
     # Sync predictor for backward compatibility/tests
     if MODEL_REGISTRY[DEFAULT_MODEL]["loaded"]:
@@ -678,12 +690,57 @@ async def predict_video(
         avg_label = "fake" if avg_fake > 0.5 else "real"
         avg_conf = max(avg_fake, 1 - avg_fake)
 
+        # ── Audio analysis ─────────────────────────────────────────────────
+        audio_result: Optional[AudioResult] = None
+        if AUDIO_PIPELINE.loaded:
+            try:
+                audio_result = AUDIO_PIPELINE.analyse_file(tmp_path)
+            except Exception as e:
+                print(f"[audio] analysis failed: {e}")
+
+        # ── Fusion ──────────────────────────────────────────────────────────
+        audio_spoof_prob = audio_result.spoof_prob if (
+            audio_result and audio_result.has_audio and not audio_result.error
+        ) else None
+
+        fusion = fuse_verdicts(
+            visual_fake_prob = avg_fake,
+            audio_spoof_prob = audio_spoof_prob,
+            strategy         = "weighted",
+        )
+
+        fake_frames = sum(1 for p in preds if p["label"] == "fake")
+        real_frames = sum(1 for p in preds if p["label"] == "real")
+
+        # ── Response ─────────────────────────────────────────────────────────
         return {
-            "label": avg_label,
-            "confidence": round(avg_conf, 4),
-            "frames_analyzed": len(preds),
+            # Top-level fused verdict — backward compatible field names
+            "prediction":   fusion["verdict"],
+            "label":        fusion["verdict"],
+            "confidence":   fusion["confidence"],
+            "architecture": arch,
+            "mode":         "video_multimodal",
+            "processing_ms": round((time.time() - t0) * 1000, 1),
             "frame_predictions": preds,
-            "processing_ms": round((time.time() - t0) * 1000, 1)
+
+            # Visual sub-result (existing fields, now nested)
+            "visual_result": {
+                "prediction":       avg_label,
+                "fake_prob":        round(avg_fake, 4),
+                "real_prob":        round(1 - avg_fake, 4),
+                "frames_analysed":  len(preds),
+                "fake_frames":      fake_frames,
+                "real_frames":      real_frames,
+            },
+
+            # Audio sub-result
+            "audio_result": audio_result.to_dict() if audio_result else {
+                "has_audio": False,
+                "error": "Audio pipeline not loaded",
+            },
+
+            # Fusion metadata
+            "fusion": fusion,
         }
     finally:
         try:
@@ -835,6 +892,59 @@ async def compare_models(
         "annotated_image": annotated_b64,
     }
 
+AUDIO_MIME_TYPES = {
+    ".mp3", ".wav", ".flac", ".m4a", ".ogg",
+    ".aac", ".wma", ".opus",
+}
+
+@app.post("/api/predict/audio")
+async def predict_audio(
+    file: UploadFile = File(...),
+    aggregate: str   = Query(
+        default="mean",
+        description="Segment aggregation: mean | majority | max_spoof",
+    ),
+):
+    """
+    Analyse an audio-only file for voice synthesis / voice conversion deepfakes.
+    Accepts: MP3, WAV, FLAC, M4A, OGG, AAC, WMA, OPUS.
+    """
+    if not AUDIO_PIPELINE.loaded:
+        raise HTTPException(
+            status_code=503,
+            detail="Audio model (AASIST-L) not loaded. "
+                   f"Check checkpoint: {AUDIO_PIPELINE.checkpoint_path}",
+        )
+
+    ext = Path(file.filename or "upload.wav").suffix.lower()
+    if ext not in AUDIO_MIME_TYPES:
+        raise HTTPException(
+            status_code=415,
+            detail=f"Unsupported audio format: '{ext}'. "
+                   f"Supported: {sorted(AUDIO_MIME_TYPES)}",
+        )
+
+    contents = await file.read()
+
+    # Temporarily override aggregate mode if requested
+    original_aggregate       = AUDIO_PIPELINE.aggregate
+    AUDIO_PIPELINE.aggregate = aggregate
+    try:
+        result = AUDIO_PIPELINE.analyse_bytes(contents, filename=file.filename or "upload.wav")
+    finally:
+        AUDIO_PIPELINE.aggregate = original_aggregate
+
+    if result.error:
+        raise HTTPException(status_code=422, detail=result.error)
+
+    return {
+        "prediction":    result.prediction,    # "spoof" | "bonafide"
+        "confidence":    result.confidence,
+        "mode":          "audio_only",
+        "audio_result":  result.to_dict(),
+    }
+
+
 # ── System / Health / Config Endpoints ────────────────────────────────────────
 
 @app.get("/api/health")
@@ -845,6 +955,8 @@ async def health(model: str = Query(default=DEFAULT_MODEL)):
     return {
         "status": "ok",
         "model_loaded": loaded,
+        "audio_model_loaded": AUDIO_PIPELINE.loaded,
+        "audio_checkpoint":   AUDIO_PIPELINE.checkpoint_path,
         "version": "0.1.0",
         "uptime_seconds": int(time.time() - app.state.start_time),
     }
