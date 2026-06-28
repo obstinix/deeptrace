@@ -871,9 +871,12 @@ async def config():
 
 app.mount("/static", StaticFiles(directory="stitch_veritas_ai_detection_platform"), name="static")
 
-@app.get("/")
+@app.get("/", response_class=FileResponse)
+@app.get("/index.html", response_class=FileResponse)
 def serve_frontend():
-    return FileResponse("index.html") if Path("index.html").exists() else ("index.html not found. Check deployment.", 404)
+    if Path("index.html").exists():
+        return FileResponse("index.html")
+    raise HTTPException(status_code=404, detail="index.html not found. Check deployment.")
 
 
 @app.get("/webhooks", response_class=FileResponse)
