@@ -625,6 +625,97 @@
           font-size: 11px;
           color: #f5a623;
         }
+
+        /* ── Method selector ────────────────────────────────────────── */
+        .method-selector {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          margin-top: 10px;
+          margin-bottom: 16px;
+        }
+        .method-pill {
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 11px;
+          padding: 4px 10px;
+          border-radius: 20px;
+          border: 1px solid var(--border, #333);
+          background: transparent;
+          color: var(--text-secondary, #aaa);
+          cursor: pointer;
+          transition: all 0.15s ease;
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+        }
+        .method-pill:hover  { border-color: var(--accent, #00D4FF); color: var(--accent, #00D4FF); }
+        .method-pill.active { background: var(--accent, #00D4FF); border-color: var(--accent, #00D4FF); color: #000; font-weight: 600; }
+        .method-pill.slow   { border-style: dashed; }
+        .slow-tag           { font-size: 9px; opacity: 0.7; }
+
+        /* ── Progress indicator ──────────────────────────────────────── */
+        .explain-progress-bar {
+          height: 3px;
+          background: var(--border, #222);
+          border-radius: 2px;
+          overflow: hidden;
+          margin-bottom: 6px;
+        }
+        .explain-progress-fill {
+          height: 100%;
+          background: var(--accent, #00D4FF);
+          border-radius: 2px;
+          width: 0%;
+          transition: width 0.5s ease;
+          animation: explain-pulse 1.5s ease-in-out infinite;
+        }
+        @keyframes explain-pulse {
+          0%, 100% { opacity: 1; }
+          50%       { opacity: 0.5; }
+        }
+        .explain-progress-label {
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 11px;
+          color: var(--text-muted, #555);
+        }
+
+        /* ── Comparison panel ────────────────────────────────────────── */
+        .explain-compare-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 10px;
+        }
+        .explain-compare-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          gap: 12px;
+        }
+        .explain-compare-card {
+          background: var(--surface, #111);
+          border: 1px solid var(--border, #222);
+          border-radius: 8px;
+          overflow: hidden;
+        }
+        .explain-compare-img {
+          width: 100%;
+          display: block;
+        }
+        .explain-compare-label {
+          padding: 8px 10px;
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 10px;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          color: var(--text-muted, #555);
+        }
+        .explain-compare-meta {
+          padding: 0 10px 8px;
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 10px;
+          color: var(--text-secondary, #888);
+          line-height: 1.6;
+        }
     </style>
 </head>
 <body class="bg-surface font-body-md text-on-surface antialiased transition-colors duration-300 overflow-x-hidden">
@@ -688,6 +779,27 @@
   <label class="selector-label">Detection model</label>
   <div class="selector-pills" id="dt-model-pills">
     <!-- Populated dynamically from /api/models -->
+  </div>
+</div>
+<!-- Explainability Method Selector -->
+<div class="method-selector" id="dt-method-selector">
+  <label class="selector-label">Explanation</label>
+  <div class="selector-pills" id="dt-method-pills">
+    <button class="method-pill active" data-method="auto" title="Grad-CAM for CNNs, Attention Rollout for ViT — instant">
+      Auto
+    </button>
+    <button class="method-pill" data-method="grad_cam" title="Gradient-weighted Class Activation Map — instant, CNN only">
+      Grad-CAM
+    </button>
+    <button class="method-pill" data-method="attention_rollout" title="Attention Rollout — instant, ViT only">
+      Attn Rollout
+    </button>
+    <button class="method-pill slow" data-method="lime" title="LIME superpixels — ~3–8s, works on all models">
+      LIME <span class="slow-tag">~5s</span>
+    </button>
+    <button class="method-pill slow" data-method="shap" title="SHAP GradientExplainer — ~8–20s, works on all models">
+      SHAP <span class="slow-tag">~15s</span>
+    </button>
   </div>
 </div>
 <!-- Upload Dropzone (Recessed) -->
@@ -759,6 +871,27 @@
 <div id="gradcam-container" class="mt-md hidden flex flex-col items-center">
 <span class="font-label-caps text-label-caps text-on-surface-variant block mb-sm w-full">Grad-CAM Heatmap</span>
 <img id="gradcam-img" class="w-full max-w-[300px] rounded-lg elevated" src="" />
+</div>
+
+<!-- Explainability Progress Indicator -->
+<div id="dt-explain-progress" class="mt-md" style="display:none">
+  <div class="explain-progress-bar">
+    <div class="explain-progress-fill" id="dt-explain-fill"></div>
+  </div>
+  <div class="explain-progress-label" id="dt-explain-label">
+    Computing explanation…
+  </div>
+</div>
+
+<!-- Side-by-side comparison: current method vs another -->
+<div id="dt-explain-compare" class="mt-md" style="display:none">
+  <div class="explain-compare-header">
+    <span class="font-label-caps text-label-caps text-on-surface-variant">Compare explanations</span>
+    <button class="method-pill" id="dt-explain-compare-btn" data-compare-method="">
+      + Add comparison
+    </button>
+  </div>
+  <div class="explain-compare-grid mt-sm" id="dt-explain-compare-grid"></div>
 </div>
 <div class="mt-lg pt-md border-t border-outline-variant/20 flex items-center justify-between">
 <div class="flex items-center gap-sm">
@@ -1552,7 +1685,383 @@
                     : ''}
                 `;
 
-                panel.style.display = '';
+            },
+
+            _selectedMethod: 'auto',
+            _explainCache:    {},
+
+            initMethodSelector() {
+                document.querySelectorAll('.method-pill[data-method]').forEach(pill => {
+                    pill.addEventListener('click', () => {
+                        document.querySelectorAll('.method-pill[data-method]')
+                                .forEach(p => p.classList.remove('active'));
+                        pill.classList.add('active');
+                        window.DeepTrace._selectedMethod = pill.dataset.method;
+                    });
+                });
+
+                const btn = document.getElementById('dt-explain-compare-btn');
+                if (btn) {
+                    btn.addEventListener('click', async () => {
+                        const allMethods = ['grad_cam', 'attention_rollout', 'lime', 'shap'];
+                        const computed = Object.keys(window.DeepTrace._explainCache);
+                        const arch = window.DeepTrace._selectedModel || 'resnet18';
+                        const compatible = allMethods.filter(m => {
+                            if (m === 'grad_cam' && arch === 'vit_b16') return false;
+                            if (m === 'attention_rollout' && arch !== 'vit_b16') return false;
+                            return !computed.includes(m);
+                        });
+
+                        if (compatible.length === 0) {
+                            alert('All compatible explanation methods have been generated!');
+                            return;
+                        }
+
+                        const nextMethod = compatible[0];
+                        const fileInput = document.getElementById('media-upload');
+                        const file = fileInput.files[0];
+                        if (!file) return;
+
+                        btn.textContent = 'Computing...';
+                        btn.disabled = true;
+
+                        try {
+                            if (['lime', 'shap'].includes(nextMethod)) {
+                                const form = new FormData();
+                                form.append('file', file);
+                                const res = await fetch(API_BASE_URL + `/api/explain?model=${arch}&method=${nextMethod}`, { method: 'POST', body: form });
+                                if (!res.ok) return;
+                                const job = await res.json();
+                                window.DeepTrace._pollExplainJob(job.job_id, job.estimated_seconds, nextMethod, file);
+                            } else {
+                                const form = new FormData();
+                                form.append('file', file);
+                                const res = await fetch(API_BASE_URL + `/api/predict/image?model=${arch}&explain_method=${nextMethod}`, { method: 'POST', body: form });
+                                if (!res.ok) return;
+                                const data = await res.json();
+                                window.DeepTrace._storeExplainForComparison(nextMethod, data.explainability, data.explainability_meta);
+                            }
+                        } finally {
+                            btn.textContent = '+ Add comparison';
+                            btn.disabled = false;
+                        }
+                    });
+                }
+            },
+
+            async runPredict(file) {
+                const method = window.DeepTrace._selectedMethod;
+                const model  = window.DeepTrace._selectedModel || 'resnet18';
+
+                // Reset comparison panel
+                document.getElementById('dt-explain-compare').style.display = 'none';
+                document.getElementById('dt-explain-compare-grid').innerHTML = '';
+                window.DeepTrace._explainCache = {};
+
+                if (['lime', 'shap'].includes(method)) {
+                    await window.DeepTrace._runPredictThenExplain(file, model, method);
+                } else {
+                    const form = new FormData();
+                    form.append('file', file);
+                    const url  = `/api/predict/image?model=${model}&explain_method=${method}`;
+                    const res  = await fetch(API_BASE_URL + url, { method: 'POST', body: form });
+                    if (!res.ok) {
+                        const err = await res.json().catch(() => ({}));
+                        throw new Error(err.detail || `HTTP ${res.status}`);
+                    }
+                    const data = await res.json();
+                    window.DeepTrace.renderPredictResult(data, file.name);
+                    window.DeepTrace._storeExplainForComparison(method, data.explainability, data.explainability_meta);
+                }
+            },
+
+            async _runPredictThenExplain(file, model, method) {
+                // Step 1: fast predict (auto explain for immediate feedback)
+                const form1 = new FormData();
+                form1.append('file', file);
+                const res1  = await fetch(API_BASE_URL + `/api/predict/image?model=${model}&explain_method=auto`,
+                                          { method: 'POST', body: form1 });
+                if (!res1.ok) {
+                    const err = await res1.json().catch(() => ({}));
+                    throw new Error(err.detail || `HTTP ${res1.status}`);
+                }
+                const data1 = await res1.json();
+                window.DeepTrace.renderPredictResult(data1, file.name);
+
+                // Store auto explain
+                const autoMethod = data1.explainability_method || 'auto';
+                window.DeepTrace._storeExplainForComparison(autoMethod, data1.explainability, data1.explainability_meta);
+
+                // Step 2: submit async explain job
+                const form2 = new FormData();
+                form2.append('file', file);
+                const res2  = await fetch(
+                    API_BASE_URL + `/api/explain?model=${model}&method=${method}`,
+                    { method: 'POST', body: form2 },
+                );
+                if (!res2.ok) {
+                    const err = await res2.json().catch(() => ({}));
+                    throw new Error(err.detail || `HTTP ${res2.status}`);
+                }
+                const job   = await res2.json();
+
+                // Step 3: show progress + poll
+                window.DeepTrace._pollExplainJob(
+                    job.job_id,
+                    job.estimated_seconds || 10,
+                    method,
+                    file
+                );
+            },
+
+            _pollExplainJob(jobId, estSec, method, file) {
+                const progressEl = document.getElementById('dt-explain-progress');
+                const fillEl     = document.getElementById('dt-explain-fill');
+                const labelEl    = document.getElementById('dt-explain-label');
+                if (progressEl) progressEl.style.display = '';
+
+                const startMs  = Date.now();
+                const totalMs  = estSec * 1000;
+                let   interval;
+
+                const updateBar = () => {
+                    const pct = Math.min(95, ((Date.now() - startMs) / totalMs) * 100);
+                    if (fillEl) fillEl.style.width = pct + '%';
+                };
+                interval = setInterval(updateBar, 200);
+
+                if (labelEl) labelEl.textContent =
+                    `Computing ${method.toUpperCase()} explanation (~${estSec}s)…`;
+
+                const poll = async () => {
+                    try {
+                        const res    = await fetch(API_BASE_URL + `/api/explain/${jobId}`);
+                        if (!res.ok) return;
+                        const status = await res.json();
+
+                        if (status.status === 'done') {
+                            clearInterval(interval);
+                            if (fillEl) fillEl.style.width = '100%';
+                            setTimeout(() => {
+                                if (progressEl) progressEl.style.display = 'none';
+                                if (fillEl) fillEl.style.width = '0%';
+                            }, 600);
+
+                            const result = status.result || {};
+                            window.DeepTrace._updateExplainDisplay(
+                                result.explainability,
+                                result.explainability_meta,
+                                method
+                            );
+                            window.DeepTrace._storeExplainForComparison(
+                                method, result.explainability, result.explainability_meta
+                            );
+
+                        } else if (status.status === 'error') {
+                            clearInterval(interval);
+                            if (progressEl) progressEl.style.display = 'none';
+                            if (labelEl) {
+                                labelEl.textContent = `${method.toUpperCase()} failed: ${status.error}`;
+                                progressEl.style.display = '';
+                            }
+                        } else {
+                            setTimeout(poll, 2000);
+                        }
+                    } catch (e) {
+                        clearInterval(interval);
+                        console.error('[DeepTrace] poll error:', e);
+                    }
+                };
+
+                setTimeout(poll, 2000);
+            },
+
+            _updateExplainDisplay(b64, meta, method) {
+                const img = document.getElementById('gradcam-img');
+                if (img && b64) img.src = b64;
+
+                const container = document.getElementById('gradcam-container');
+                if (container) {
+                    container.classList.remove('hidden');
+                    let methodLabel = container.querySelector('.dt-explainability-method');
+                    if (!methodLabel) {
+                        methodLabel = document.createElement('div');
+                        methodLabel.className = 'dt-explainability-method';
+                        container.insertBefore(methodLabel, img);
+                    }
+                    const archName = window.DeepTrace._selectedModel || 'resnet18';
+                    methodLabel.textContent = `${method.toUpperCase()} · ${archName.toUpperCase()}`;
+                }
+            },
+
+            _storeExplainForComparison(method, b64, meta) {
+                if (!b64) return;
+                window.DeepTrace._explainCache[method] = { b64, meta };
+                window.DeepTrace._renderCompareGrid();
+            },
+
+            _renderCompareGrid() {
+                const compareEl = document.getElementById('dt-explain-compare');
+                const gridEl    = document.getElementById('dt-explain-compare-grid');
+                if (!compareEl || !gridEl) return;
+
+                const keys = Object.keys(window.DeepTrace._explainCache);
+                if (keys.length <= 1) {
+                    compareEl.style.display = 'none';
+                    return;
+                }
+
+                compareEl.style.display = 'block';
+                gridEl.innerHTML = '';
+
+                keys.forEach(method => {
+                    const data = window.DeepTrace._explainCache[method];
+                    const card = document.createElement('div');
+                    card.className = 'explain-compare-card';
+
+                    let metaHtml = '';
+                    if (data.meta) {
+                        Object.entries(data.meta).forEach(([k, v]) => {
+                            if (k !== 'method' && k !== 'top_features') {
+                                metaHtml += `<div>${k}: ${v}</div>`;
+                            }
+                        });
+                    }
+
+                    card.innerHTML = `
+                        <div class="explain-compare-label">${method.toUpperCase()}</div>
+                        <img class="explain-compare-img" src="${data.b64}" />
+                        <div class="explain-compare-meta">${metaHtml}</div>
+                    `;
+                    gridEl.appendChild(card);
+                });
+            },
+
+            renderPredictResult(data, filename) {
+                // Display Results
+                dropzoneText.textContent = `Complete: ${filename}`;
+                statusText.textContent = "Analysis Complete";
+                verdictText.textContent = data.label.toUpperCase();
+                if (data.label.toLowerCase() === 'fake') {
+                     verdictText.className = 'font-display text-[48px] font-bold text-[red] tracking-tight leading-none';
+                     verdictBar.className = 'h-full bg-[red] w-[0%] transition-all duration-500';
+                } else {
+                     verdictText.className = 'font-display text-[48px] font-bold text-primary tracking-tight leading-none';
+                     verdictBar.className = 'h-full bg-primary w-[0%] transition-all duration-500';
+                }
+                 
+                const conf = Math.round(data.confidence * 100);
+                verdictBar.style.width = `${conf}%`;
+                confidenceText.textContent = `${conf}%`;
+                speedText.textContent = `${data.processing_ms} ms`;
+                addToHistory(filename, data.label, data.confidence, data.processing_ms);
+
+                // ── mode badge ────────────────────────────────────────────────────────
+                const modeBadge = document.getElementById('dt-mode-badge')
+                   || (() => {
+                     const el = document.createElement('div');
+                     el.id = 'dt-mode-badge';
+                     el.className = 'face-mode-badge';
+                     const parent = verdictText.parentNode;
+                     parent.insertBefore(el, verdictText);
+                     return el;
+                   })();
+
+                const modeLabel = data.mode === 'face_detect'
+                    ? `Face detect · ${data.faces_detected} face${data.faces_detected !== 1 ? 's' : ''}`
+                    : data.mode === 'video_multimodal'
+                    ? 'Video Multimodal'
+                    : 'Whole frame';
+                modeBadge.innerHTML = `<span class="dot"></span>${modeLabel}`;
+
+                // ── annotated image ───────────────────────────────────────────────────
+                const annotatedContainer = document.getElementById('dt-annotated-container');
+                const annotatedImg       = document.getElementById('dt-annotated-img');
+                if (data.annotated_image && annotatedContainer && annotatedImg) {
+                   annotatedImg.src = data.annotated_image;
+                   annotatedContainer.style.display = '';
+                } else if (annotatedContainer) {
+                   annotatedContainer.style.display = 'none';
+                }
+
+                // ── per-face cards ────────────────────────────────────────────────────
+                const faceResultsEl = document.getElementById('dt-face-results');
+                const faceCardsEl   = document.getElementById('dt-face-cards');
+
+                if (data.face_results && data.face_results.length > 0 && faceCardsEl) {
+                   faceCardsEl.innerHTML = '';
+                   data.face_results.forEach(face => {
+                     const card = document.createElement('div');
+                     card.className = `face-card verdict-${face.prediction}`;
+
+                     if (face.crop_b64) {
+                       const img = document.createElement('img');
+                       img.className = 'face-card-crop';
+                       img.src = face.crop_b64;
+                       img.alt = `Face #${face.face_idx}`;
+                       card.appendChild(img);
+                     }
+
+                     const pct = Math.round((face.confidence || 0) * 100);
+                     const body = document.createElement('div');
+                     body.className = 'face-card-body';
+                     body.innerHTML = `
+                       <div class="face-card-label">Face #${face.face_idx}</div>
+                       <div class="face-card-verdict ${face.prediction}">
+                         ${face.prediction.toUpperCase()}
+                       </div>
+                       <div class="face-card-conf">${pct}% · ${face.inference_time_ms?.toFixed(1)}ms</div>
+                     `;
+                     card.appendChild(body);
+                     faceCardsEl.appendChild(card);
+                   });
+                   faceResultsEl.style.display = '';
+                } else if (faceResultsEl) {
+                   faceResultsEl.style.display = 'none';
+                }
+                
+                if (data.explainability) {
+                    const container = document.getElementById('gradcam-container');
+                    container.classList.remove('hidden');
+                    document.getElementById('gradcam-img').src = data.explainability;
+                    
+                    const method = data.explainability_method === 'attention_rollout'
+                        ? 'Attention Rollout'
+                        : data.explainability_method === 'grad_cam'
+                        ? 'Grad-CAM'
+                        : data.explainability_method.toUpperCase();
+                    const archName = data.architecture ? data.architecture.replace('_', '-') : 'resnet18';
+                    
+                    let methodLabel = container.querySelector('.dt-explainability-method');
+                    if (!methodLabel) {
+                        methodLabel = document.createElement('div');
+                        methodLabel.className = 'dt-explainability-method';
+                        container.insertBefore(methodLabel, document.getElementById('gradcam-img'));
+                    }
+                    methodLabel.textContent = `${method} · ${archName.toUpperCase()}`;
+                } else {
+                    document.getElementById('gradcam-container').classList.add('hidden');
+                }
+                
+                if (data.frame_predictions) {
+                    document.getElementById('frame-timeline-container').classList.remove('hidden');
+                    const timeline = document.getElementById('frame-timeline');
+                    timeline.innerHTML = '';
+                    data.frame_predictions.forEach(frame => {
+                        const el = document.createElement('div');
+                        el.className = `flex-shrink-0 w-8 h-8 rounded-sm tooltip ${frame.label.toLowerCase() === 'fake' ? 'bg-[red]' : 'bg-primary'}`;
+                        el.title = `Frame ${frame.frame_idx}: ${Math.round(frame.prob_fake*100)}% fake`;
+                        timeline.appendChild(el);
+                    });
+                }
+                
+                // Render audio results if multimodal
+                if (data.mode === 'video_multimodal') {
+                    renderAudioResult(data);
+                } else {
+                    const audioPanel = document.getElementById('dt-audio-panel');
+                    if (audioPanel) audioPanel.style.display = 'none';
+                }
             },
 
             initGroupTab() {
@@ -1656,6 +2165,7 @@
 
         // Initialize selectors and compare tab
         window.DeepTrace.initModelSelector();
+        window.DeepTrace.initMethodSelector();
         window.DeepTrace.initCompareTab();
         window.DeepTrace.initGroupTab();
 
@@ -1686,6 +2196,12 @@
             document.getElementById('frame-timeline').innerHTML = '';
             const audioPanel = document.getElementById('dt-audio-panel');
             if (audioPanel) audioPanel.style.display = 'none';
+
+            // Reset progress and compare panels
+            const progressEl = document.getElementById('dt-explain-progress');
+            if (progressEl) progressEl.style.display = 'none';
+            const compareEl = document.getElementById('dt-explain-compare');
+            if (compareEl) compareEl.style.display = 'none';
             
             const formData = new FormData();
             formData.append('file', file);
@@ -1709,144 +2225,12 @@
                         progressBar.style.width = `${percent}%`;
                         progressPct.textContent = `${percent}%`;
                     });
+                    progressContainer.classList.add('hidden');
+                    window.DeepTrace.renderPredictResult(data, file.name);
                 } else {
-                    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-                        method: 'POST',
-                        body: formData
-                    });
-                    
-                    if (!response.ok) {
-                        const errData = await response.json().catch(()=>({}));
-                        throw new Error(errData.detail || `HTTP Error ${response.status}`);
-                    }
-                    data = await response.json();
+                    progressContainer.classList.add('hidden');
+                    await window.DeepTrace.runPredict(file);
                 }
-                
-                progressContainer.classList.add('hidden');
-                
-                // Display Results
-                dropzoneText.textContent = `Complete: ${file.name}`;
-                statusText.textContent = "Analysis Complete";
-                verdictText.textContent = data.label.toUpperCase();
-                 if (data.label.toLowerCase() === 'fake') {
-                     verdictText.classList.replace('text-primary', 'text-[red]');
-                     verdictBar.classList.replace('bg-primary', 'bg-[red]');
-                 } else {
-                     verdictText.classList.replace('text-[red]', 'text-primary');
-                     verdictBar.classList.replace('bg-[red]', 'bg-primary');
-                 }
-                 
-                 const conf = Math.round(data.confidence * 100);
-                 verdictBar.style.width = `${conf}%`;
-                 confidenceText.textContent = `${conf}%`;
-                 speedText.textContent = `${data.processing_ms} ms`;
-                 addToHistory(file.name, data.label, data.confidence, data.processing_ms);
-
-                 // ── mode badge ────────────────────────────────────────────────────────
-                 const modeBadge = document.getElementById('dt-mode-badge')
-                   || (() => {
-                     const el = document.createElement('div');
-                     el.id = 'dt-mode-badge';
-                     el.className = 'face-mode-badge';
-                     // Insert before the verdict display
-                     const parent = verdictText.parentNode;
-                     parent.insertBefore(el, verdictText);
-                     return el;
-                   })();
-
-                 const modeLabel = data.mode === 'face_detect'
-                    ? `Face detect · ${data.faces_detected} face${data.faces_detected !== 1 ? 's' : ''}`
-                    : data.mode === 'video_multimodal'
-                    ? 'Video Multimodal'
-                    : 'Whole frame';
-                 modeBadge.innerHTML = `<span class="dot"></span>${modeLabel}`;
-
-                 // ── annotated image ───────────────────────────────────────────────────
-                 const annotatedContainer = document.getElementById('dt-annotated-container');
-                 const annotatedImg       = document.getElementById('dt-annotated-img');
-                 if (data.annotated_image && annotatedContainer && annotatedImg) {
-                   annotatedImg.src = data.annotated_image;
-                   annotatedContainer.style.display = '';
-                 } else if (annotatedContainer) {
-                   annotatedContainer.style.display = 'none';
-                 }
-
-                 // ── per-face cards ────────────────────────────────────────────────────
-                 const faceResultsEl = document.getElementById('dt-face-results');
-                 const faceCardsEl   = document.getElementById('dt-face-cards');
-
-                 if (data.face_results && data.face_results.length > 0 && faceCardsEl) {
-                   faceCardsEl.innerHTML = '';
-
-                   data.face_results.forEach(face => {
-                     const card = document.createElement('div');
-                     card.className = `face-card verdict-${face.prediction}`;
-
-                     // Face crop image
-                     if (face.crop_b64) {
-                       const img = document.createElement('img');
-                       img.className = 'face-card-crop';
-                       img.src = face.crop_b64;
-                       img.alt = `Face #${face.face_idx}`;
-                       card.appendChild(img);
-                     }
-
-                     const pct = Math.round((face.confidence || 0) * 100);
-                     const body = document.createElement('div');
-                     body.className = 'face-card-body';
-                     body.innerHTML = `
-                       <div class="face-card-label">Face #${face.face_idx}</div>
-                       <div class="face-card-verdict ${face.prediction}">
-                         ${face.prediction.toUpperCase()}
-                       </div>
-                       <div class="face-card-conf">${pct}% · ${face.inference_time_ms?.toFixed(1)}ms</div>
-                     `;
-                     card.appendChild(body);
-                     faceCardsEl.appendChild(card);
-                   });
-
-                   faceResultsEl.style.display = '';
-                 } else if (faceResultsEl) {
-                   faceResultsEl.style.display = 'none';
-                 }
-                
-                if (data.gradcam_image) {
-                    const container = document.getElementById('gradcam-container');
-                    container.classList.remove('hidden');
-                    document.getElementById('gradcam-img').src = data.gradcam_image;
-                    
-                    const method = data.explainability_method === 'attention_rollout'
-                        ? 'Attention Rollout'
-                        : 'Grad-CAM';
-                    const archName = data.architecture ? data.architecture.replace('_', '-') : 'resnet18';
-                    
-                    let methodLabel = container.querySelector('.dt-explainability-method');
-                    if (!methodLabel) {
-                        methodLabel = document.createElement('div');
-                        methodLabel.className = 'dt-explainability-method';
-                        container.insertBefore(methodLabel, document.getElementById('gradcam-img'));
-                    }
-                    methodLabel.textContent = `${method} · ${archName.toUpperCase()}`;
-                }
-                if (data.frame_predictions) {
-                    document.getElementById('frame-timeline-container').classList.remove('hidden');
-                    const timeline = document.getElementById('frame-timeline');
-                    data.frame_predictions.forEach(frame => {
-                        const el = document.createElement('div');
-                        el.className = `flex-shrink-0 w-8 h-8 rounded-sm tooltip ${frame.label.toLowerCase() === 'fake' ? 'bg-[red]' : 'bg-primary'}`;
-                        el.title = `Frame ${frame.frame_idx}: ${Math.round(frame.prob_fake*100)}% fake`;
-                        timeline.appendChild(el);
-                    });
-                }
-
-                // Render audio results if multimodal
-                if (data.mode === 'video_multimodal') {
-                    renderAudioResult(data);
-                } else {
-                    const audioPanel = document.getElementById('dt-audio-panel');
-                    if (audioPanel) audioPanel.style.display = 'none';
-                }
-                
             } catch (error) {
                 console.error(error);
                 progressContainer.classList.add('hidden');

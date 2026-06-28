@@ -40,6 +40,15 @@ from deepfake_recognition.utils.multi_face import (
 )
 from src.deepfake_recognition.audio.audio_pipeline import AudioPipeline, AudioResult
 from src.deepfake_recognition.audio.audio_fusion   import fuse_verdicts, FusionStrategy
+from src.deepfake_recognition.utils.explainability.router import (
+    get_explanation,
+    FAST_METHODS,
+    SLOW_METHODS,
+    ALL_METHODS,
+    ExplainMethod,
+)
+from src.deepfake_recognition.utils.explainability.explainability_cache import ExplainCache
+from src.deepfake_recognition.utils.explainability.shap_explainer import ShapExplainer
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
 
@@ -49,6 +58,15 @@ AUDIO_PIPELINE = AudioPipeline(
     device=torch.device("cpu"),   # CPU is fast enough — saves GPU VRAM
     aggregate="mean",
 )
+
+# ── Explainability infrastructure ────────────────────────────────────────────
+SHAP_EXPLAINER = ShapExplainer(
+    n_background=50,
+    n_evals=50,
+    device=torch.device("cpu"),
+)
+EXPLAIN_CACHE = ExplainCache(max_workers=2, ttl_seconds=300)
+
 
 # Registry of supported architectures and their active states
 MODEL_REGISTRY: dict = {
@@ -106,7 +124,21 @@ async def lifespan(app: FastAPI):
     
     # Load audio pipeline
     AUDIO_PIPELINE.load()
-    
+
+    # Populate SHAP background from real training/validation frames (if available)
+    import glob
+    from PIL import Image as _PIL
+    real_frames = glob.glob("data/frames*/val/real/*.jpg")[:50]
+    if real_frames:
+        try:
+            bg_images = [_PIL.open(p) for p in real_frames]
+            SHAP_EXPLAINER.set_background(bg_images)
+            print(f"[shap] background populated with {len(bg_images)} images")
+        except Exception as bg_e:
+            print(f"[shap] background population failed: {bg_e}")
+    else:
+        print("[shap] no real frames found — will use synthetic noise background")
+
     # Sync predictor for backward compatibility/tests
     if MODEL_REGISTRY[DEFAULT_MODEL]["loaded"]:
         app.state.predictor = Predictor(MODEL_REGISTRY[DEFAULT_MODEL]["model"], str(DEVICE))
@@ -130,47 +162,6 @@ MAX_VIDEO_BYTES = 100 * 1024 * 1024
 
 # ── Inference / Prediction Endpoints ──────────────────────────────────────────
 
-# Helper to generate explainability map (either Grad-CAM or Attention Rollout)
-def get_explainability_map(
-    net: torch.nn.Module,
-    arch: str,
-    input_tensor: torch.Tensor,
-    original_image
-) -> Optional[str]:
-    """
-    Returns a base64-encoded PNG of the explainability overlay,
-    or None if generation fails.
-    """
-    try:
-        if supports_gradcam(arch):
-            # Existing Grad-CAM path (ResNet-18 / EfficientNet-B0)
-            target_layer = get_gradcam_target_layer(net, arch)
-            with torch.enable_grad():
-                input_tensor_grad = input_tensor.clone().requires_grad_(True)
-                return generate_gradcam_base64(net, input_tensor_grad, original_image, target_layer=target_layer)
-        else:
-            # Attention Rollout path (ViT-B/16)
-            rollout = AttentionRollout(
-                net,
-                head_fusion="mean",
-                discard_ratio=0.9,
-            )
-            mask    = rollout(input_tensor)           # (14, 14) numpy array
-            overlay = AttentionRollout.overlay(
-                original_image,
-                mask,
-                alpha=0.5,
-                colormap="viridis",                   # cooler palette than jet
-            )
-            buf = io.BytesIO()
-            overlay.save(buf, format="PNG")
-            rollout.remove_hooks()
-            return "data:image/png;base64," + base64.b64encode(
-                buf.getvalue()
-            ).decode()
-    except Exception as e:
-        print(f"[explainability] {arch} failed: {e}")
-        return None
 
 
 import torchvision.transforms as T
@@ -233,10 +224,18 @@ def _run_inference_on_crop(
     # Explainability
     explainability_method = "grad_cam" if supports_gradcam(arch) else "attention_rollout"
     explainability = None
+    explainability_meta = {}
     try:
-        explainability = get_explainability_map(
-            net, arch, tensor, crop
+        explainability, explainability_meta = get_explanation(
+            model=net,
+            arch=arch,
+            input_tensor=tensor,
+            original=crop,
+            method="auto",
+            device=DEVICE,
+            shap_explainer_instance=SHAP_EXPLAINER,
         )
+        explainability_method = explainability_meta.get("method", explainability_method)
     except Exception as e:
         print(f"[explainability] {arch} face#{face_det.face_idx}: {e}")
 
@@ -253,6 +252,7 @@ def _run_inference_on_crop(
         },
         "explainability":        explainability,
         "explainability_method": explainability_method,
+        "explainability_meta":   explainability_meta,
         "inference_time_ms":     round(ms, 2),
         "crop_b64":              image_to_base64(crop),
     }
@@ -293,13 +293,21 @@ def _run_batched_inference(
 
         explainability        = None
         explainability_method = "grad_cam" if supports_gradcam(arch) else "attention_rollout"
+        explainability_meta   = {}
         if include_explainability:
             # Explainability requires individual tensor — run separately
             try:
                 t = pil_to_tensor(crop)
-                explainability = get_explainability_map(
-                    net, arch, t, crop
+                explainability, explainability_meta = get_explanation(
+                    model=net,
+                    arch=arch,
+                    input_tensor=t,
+                    original=crop,
+                    method="auto",
+                    device=DEVICE,
+                    shap_explainer_instance=SHAP_EXPLAINER,
                 )
+                explainability_method = explainability_meta.get("method", explainability_method)
             except Exception as e:
                 print(f"[explainability] face#{det.face_idx}: {e}")
 
@@ -316,6 +324,7 @@ def _run_batched_inference(
             },
             "explainability":        explainability,
             "explainability_method": explainability_method,
+            "explainability_meta":   explainability_meta,
             "inference_time_ms":     per_face_ms,
             "crop_b64":              image_to_base64(crop),
         })
@@ -334,6 +343,15 @@ async def predict_image(
                     "Falls back to whole-frame if no face found."),
     max_faces: int    = Query(default=5,
         description="Maximum number of faces to analyse per image."),
+    explain_method: str = Query(
+        default="auto",
+        description=(
+            "Explainability method: auto | grad_cam | attention_rollout | "
+            "lime | shap. "
+            "lime and shap are slow (3–20s) — use /api/explain for async. "
+            "auto selects grad_cam for CNNs, attention_rollout for ViT."
+        ),
+    ),
 ):
     # Backward compatibility with test_predict_no_model_503
     if request.app.state.predictor is None:
@@ -356,6 +374,16 @@ async def predict_image(
                    f"Check checkpoint at: {SUPPORTED_ARCHITECTURES.get(arch, '?')}"
         )
     net = entry["model"]
+
+    _explain_method = explain_method.lower()
+    if _explain_method in SLOW_METHODS:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"'{_explain_method}' is too slow for synchronous prediction. "
+                "Submit via POST /api/explain instead and poll GET /api/explain/{job_id}."
+            ),
+        )
 
     # Read and decode the uploaded image
     try:
@@ -409,6 +437,7 @@ async def predict_image(
                 "gradcam_image":         face_results[0]["explainability"],
                 "explainability":        face_results[0]["explainability"],
                 "explainability_method": face_results[0]["explainability_method"],
+                "explainability_meta":   face_results[0].get("explainability_meta", {}),
                 "probabilities":         face_results[0]["probabilities"],
             }
 
@@ -426,12 +455,20 @@ async def predict_image(
     real_prob = probs[1].item()
     verdict   = "fake" if fake_prob > 0.5 else "real"
 
-    exp_method = "grad_cam" if supports_gradcam(arch) else "attention_rollout"
     explainability = None
+    explainability_meta = {}
+    exp_method = _explain_method
     try:
-        explainability = get_explainability_map(
-            net, arch, tensor, pil_image
+        explainability, explainability_meta = get_explanation(
+            model=net,
+            arch=arch,
+            input_tensor=tensor,
+            original=pil_image,
+            method=_explain_method,
+            device=DEVICE,
+            shap_explainer_instance=SHAP_EXPLAINER,
         )
+        exp_method = explainability_meta.get("method", _explain_method)
     except Exception as e:
         print(f"[explainability] whole-frame {arch}: {e}")
 
@@ -450,6 +487,7 @@ async def predict_image(
         "explainability":        explainability,
         "gradcam_image":         explainability,
         "explainability_method": exp_method,
+        "explainability_meta":   explainability_meta,
         "processing_ms":         elapsed_ms,
         "inference_time_ms":     elapsed_ms,
     }
@@ -945,6 +983,103 @@ async def predict_audio(
     }
 
 
+# ── Async Explainability Endpoints ────────────────────────────────────────────
+
+@app.post("/api/explain")
+async def submit_explain_job(
+    file:           UploadFile = File(...),
+    model:          str        = Query(default=DEFAULT_MODEL),
+    method:         str        = Query(default="lime",
+                                       description="lime | shap"),
+    # LIME params
+    lime_samples:   int        = Query(default=1000),
+    lime_segments:  int        = Query(default=75),
+    lime_top_k:     int        = Query(default=10),
+    lime_pos_only:  bool       = Query(default=False),
+    # SHAP params
+    shap_n_bg:      int        = Query(default=50),
+    shap_n_evals:   int        = Query(default=50),
+):
+    """
+    Submit an async LIME or SHAP explanation job.
+    Returns immediately with a job_id. Poll GET /api/explain/{job_id} for result.
+    """
+    method = method.lower()
+    if method not in SLOW_METHODS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"'{method}' is a fast method — use GET /api/predict/image?explain_method={method} instead.",
+        )
+
+    arch  = model.lower()
+    entry = MODEL_REGISTRY.get(arch)
+    if not entry or not entry["loaded"]:
+        raise HTTPException(status_code=503,
+                            detail=f"Model '{arch}' not loaded.")
+
+    contents = await file.read()
+    try:
+        pil_image = PILImage.open(io.BytesIO(contents)).convert("RGB")
+    except Exception:
+        raise HTTPException(status_code=400, detail="Could not decode image.")
+
+    net   = entry["model"]
+    dev   = DEVICE
+
+    # Build normalised tensor for the job
+    tensor = _INFER_TRANSFORM(pil_image).unsqueeze(0).to(dev)
+
+    # Capture everything the job needs — avoid closure over request objects
+    _arch       = arch
+    _pil        = pil_image.copy()
+    _net        = net
+    _method     = method
+    _lime_kw    = dict(
+        lime_num_samples=lime_samples,
+        lime_num_superpixels=lime_segments,
+        lime_top_k=lime_top_k,
+        lime_positive_only=lime_pos_only,
+    )
+    _shap_kw    = dict(
+        shap_n_background=shap_n_bg,
+        shap_n_evals=shap_n_evals,
+        shap_explainer_instance=SHAP_EXPLAINER,
+    )
+
+    def _job():
+        kw = _lime_kw if _method == "lime" else _shap_kw
+        b64, meta = get_explanation(
+            model=_net, arch=_arch,
+            input_tensor=tensor, original=_pil,
+            method=_method, device=dev, **kw,
+        )
+        return {"explainability": b64, "explainability_meta": meta}
+
+    job_id = EXPLAIN_CACHE.submit(_job)
+
+    return {
+        "job_id":    job_id,
+        "status":    "pending",
+        "method":    method,
+        "model":     arch,
+        "poll_url":  f"/api/explain/{job_id}",
+        "estimated_seconds": 8 if method == "lime" else 18,
+    }
+
+
+@app.get("/api/explain/{job_id}")
+async def poll_explain_job(job_id: str):
+    """Poll the status of an async LIME or SHAP explanation job."""
+    entry = EXPLAIN_CACHE.get(job_id)
+    if entry is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Job '{job_id}' not found or expired (TTL: 300s).",
+        )
+    return entry
+
+
+
 # ── System / Health / Config Endpoints ────────────────────────────────────────
 
 @app.get("/api/health")
@@ -957,6 +1092,7 @@ async def health(model: str = Query(default=DEFAULT_MODEL)):
         "model_loaded": loaded,
         "audio_model_loaded": AUDIO_PIPELINE.loaded,
         "audio_checkpoint":   AUDIO_PIPELINE.checkpoint_path,
+        "explain_queue_pending": EXPLAIN_CACHE.pending_count(),
         "version": "0.1.0",
         "uptime_seconds": int(time.time() - app.state.start_time),
     }
