@@ -1,0 +1,27 @@
+{
+  "strategy": "learned",
+  "feature_order": [
+    "resnet18",
+    "efficientnet_b0",
+    "vit_b16"
+  ],
+  "n_val_samples": 12,
+  "ensemble_auc": 1.0,
+  "ensemble_acc": 1.0,
+  "best_individual_auc": 1.0,
+  "auc_improvement": 0.0,
+  "individual_metrics": {
+    "resnet18": {
+      "auc": 1.0,
+      "acc": 0.75
+    },
+    "efficientnet_b0": {
+      "auc": 1.0,
+      "acc": 1.0
+    },
+    "vit_b16": {
+      "auc": 1.0,
+      "acc": 1.0
+    }
+  }
+}

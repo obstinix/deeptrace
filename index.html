@@ -396,6 +396,108 @@
           border: 1px solid rgba(245, 158, 11, 0.3);
         }
 
+        /* ── Ensemble tab ────────────────────────────────────────────── */
+        .ens-verdict-card {
+          background: var(--surface-container-low, #1e1b1b);
+          border: 1px solid var(--outline-variant, #444748);
+          border-radius: 8px;
+          padding: 20px;
+          margin-bottom: 16px;
+        }
+        .ens-verdict-label {
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 10px;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: var(--text-muted, #777);
+          margin-bottom: 8px;
+        }
+        .ens-verdict {
+          font-family: 'Outfit', sans-serif;
+          font-size: 32px;
+          font-weight: 700;
+          letter-spacing: 0.04em;
+          margin-bottom: 4px;
+        }
+        .ens-verdict.fake { color: #ff4d4d; }
+        .ens-verdict.real { color: #2dd4bf; }
+        .ens-confidence {
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 14px;
+          color: var(--text-secondary, #aaa);
+          margin-bottom: 8px;
+        }
+        .ens-meta {
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 11px;
+          color: var(--text-muted, #777);
+          line-height: 1.7;
+        }
+
+        /* Per-model bars */
+        .ens-members {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          margin-bottom: 14px;
+        }
+        .ens-member-row {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+        .ens-member-arch {
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 11px;
+          color: var(--text-secondary, #aaa);
+          width: 140px;
+          flex-shrink: 0;
+        }
+        .ens-member-bar-wrap {
+          flex: 1;
+          height: 6px;
+          background: var(--outline-variant, #444748);
+          border-radius: 3px;
+          overflow: hidden;
+        }
+        .ens-member-bar-fill {
+          height: 100%;
+          border-radius: 3px;
+          width: 0%;
+          transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .ens-member-bar-fill.fake { background: #ff4d4d; }
+        .ens-member-bar-fill.real { background: #2dd4bf; }
+        .ens-member-pct {
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 11px;
+          color: var(--text-secondary, #aaa);
+          width: 44px;
+          text-align: right;
+          flex-shrink: 0;
+        }
+        .ens-member-pct.fake { color: #ff4d4d; }
+        .ens-member-pct.real { color: #2dd4bf; }
+        .ens-member-weight {
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 10px;
+          color: var(--text-muted, #777);
+          width: 48px;
+          text-align: right;
+          flex-shrink: 0;
+        }
+
+        /* Disagreement badge */
+        .ens-disagreement {
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 11px;
+          color: var(--text-muted, #777);
+          padding: 8px 12px;
+          background: var(--surface-container-low, #1e1b1b);
+          border: 1px solid var(--outline-variant, #444748);
+          border-radius: 6px;
+        }
+
         /* ── Group tab controls ──────────────────────────────────────── */
         .group-controls {
           display: flex;
@@ -756,6 +858,7 @@
 <a class="px-md py-1.5 font-body-md text-body-md text-on-surface-variant hover:text-primary rounded-full transition-all duration-200" href="#section-performance">Performance</a>
 <a class="px-md py-1.5 font-body-md text-body-md text-on-surface-variant hover:text-primary rounded-full transition-all duration-200" href="#section-compare" data-tab="compare">Compare</a>
 <a class="px-md py-1.5 font-body-md text-body-md text-on-surface-variant hover:text-primary rounded-full transition-all duration-200" href="#section-group" data-tab="group">Group</a>
+<a class="px-md py-1.5 font-body-md text-body-md text-on-surface-variant hover:text-primary rounded-full transition-all duration-200" href="#section-ensemble" data-tab="ensemble">Ensemble</a>
 </div>
 <div class="flex items-center gap-md">
 <!-- GitHub Button (Nav) -->
@@ -1144,6 +1247,53 @@
     <div class="face-detail-content" id="dt-face-detail-content"></div>
   </div>
 
+</div>
+
+<!-- ── ENSEMBLE TAB ────────────────────────────────────────────────── -->
+<div class="tab-panel" id="tab-ensemble" style="display:none">
+
+  <!-- Controls -->
+  <div class="group-controls">
+    <div class="control-group">
+      <label class="control-label">Strategy</label>
+      <select id="dt-ens-strategy" class="control-select">
+        <option value="auto" selected>Auto</option>
+        <option value="weighted_average">Weighted avg</option>
+        <option value="learned">Learned</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <label class="control-label">Threshold</label>
+      <input id="dt-ens-threshold" type="number" class="control-input"
+             value="0.5" min="0.1" max="0.9" step="0.05">
+    </div>
+  </div>
+
+  <!-- Drop zone -->
+  <div class="drop-zone group-drop bg-surface-container-low/50 border border-dashed border-outline-variant/30 rounded-lg p-lg text-center cursor-pointer hover:border-primary/50 transition-colors" id="dt-ens-drop">
+    <span class="material-symbols-outlined text-outline text-[48px] mb-md block">add_circle</span>
+    <span class="font-body-md text-body-md text-on-surface block">Drop image or click to browse</span>
+    <input type="file" id="dt-ens-file" accept="image/*" style="display:none">
+  </div>
+
+  <!-- Results -->
+  <div id="dt-ens-results" style="display:none" class="mt-lg">
+
+    <!-- Fused verdict -->
+    <div class="ens-verdict-card" id="dt-ens-verdict-card">
+      <div class="ens-verdict-label">Ensemble verdict</div>
+      <div class="ens-verdict" id="dt-ens-verdict"></div>
+      <div class="ens-confidence" id="dt-ens-confidence"></div>
+      <div class="ens-meta" id="dt-ens-meta"></div>
+    </div>
+
+    <!-- Per-model contribution bars -->
+    <div class="ens-members" id="dt-ens-members"></div>
+
+    <!-- Disagreement indicator -->
+    <div class="ens-disagreement mt-md" id="dt-ens-disagreement"></div>
+
+  </div>
 </div>
 </main>
 <!-- Footer Shell -->
@@ -2121,6 +2271,118 @@
                     document.getElementById('dt-face-detail').style.display = 'none';
                 });
             },
+
+            async runEnsemble(file) {
+                const results    = document.getElementById('dt-ens-results');
+                const verdictEl  = document.getElementById('dt-ens-verdict');
+                const confEl     = document.getElementById('dt-ens-confidence');
+                const metaEl     = document.getElementById('dt-ens-meta');
+                const membersEl  = document.getElementById('dt-ens-members');
+                const disagreeEl = document.getElementById('dt-ens-disagreement');
+                const card       = document.getElementById('dt-ens-verdict-card');
+                if (!results) return;
+
+                // Show loading state
+                if (verdictEl) verdictEl.textContent = '…';
+                if (results)   results.style.display = '';
+
+                const strategy  = document.getElementById('dt-ens-strategy')?.value || 'auto';
+                const threshold = document.getElementById('dt-ens-threshold')?.value || '0.5';
+                const form      = new FormData();
+                form.append('file', file);
+
+                try {
+                    const res  = await fetch(
+                        `/api/predict/ensemble?strategy=${strategy}&threshold=${threshold}`,
+                        { method: 'POST', body: form }
+                    );
+                    const data = await res.json();
+
+                    const ens     = data.ensemble    || {};
+                    const verdict = data.prediction  || 'unknown';
+                    const conf    = Math.round((data.confidence || 0) * 100);
+
+                    // Verdict card
+                    if (verdictEl) {
+                        verdictEl.className = `ens-verdict ${verdict}`;
+                        verdictEl.textContent = verdict.toUpperCase();
+                    }
+                    if (confEl)  confEl.textContent = `${conf}% confidence`;
+                    if (card)    card.style.borderColor =
+                        verdict === 'fake' ? '#ff4d4d' : verdict === 'real' ? '#2dd4bf' : '';
+                    if (metaEl)  metaEl.innerHTML = [
+                        `strategy: ${ens.strategy || '—'}`,
+                        `ensemble P(fake): ${((ens.ensemble_fake_prob || 0) * 100).toFixed(1)}%`,
+                        `threshold: ${threshold}`,
+                        `models: ${data.n_models_loaded}`,
+                        `calibrated: ${data.calibration_applied}`,
+                    ].join('<br>');
+
+                    // Per-model bars
+                    if (membersEl) {
+                        membersEl.innerHTML = '';
+                        const perModel = data.per_model || {};
+                        const weights  = ens.weights_used || {};
+
+                        Object.entries(perModel).forEach(([arch, info]) => {
+                            const fakePct = Math.round((info.fake_prob || 0) * 100);
+                            const mv      = info.verdict || 'unknown';
+                            const weight  = weights[arch] != null
+                                ? `w=${(weights[arch] * 100).toFixed(0)}%`
+                                : '';
+                            const row = document.createElement('div');
+                            row.className = 'ens-member-row';
+                            row.innerHTML = `
+                                <div class="ens-member-arch">${arch.replace('_','-')}</div>
+                                <div class="ens-member-bar-wrap">
+                                    <div class="ens-member-bar-fill ${mv}"
+                                         style="width:${fakePct}%"></div>
+                                </div>
+                                <div class="ens-member-pct ${mv}">${fakePct}%</div>
+                                <div class="ens-member-weight">${weight}</div>
+                            `;
+                            membersEl.appendChild(row);
+                        });
+                    }
+
+                    // Disagreement
+                    if (disagreeEl) {
+                        const d   = ens.disagreement || 0;
+                        const lvl = d < 0.05 ? 'strong agreement'
+                                  : d < 0.15 ? 'moderate agreement'
+                                  : d < 0.25 ? 'mild disagreement'
+                                  : 'significant disagreement';
+                        disagreeEl.textContent =
+                            `Model disagreement: σ=${(d).toFixed(3)} — ${lvl}`;
+                    }
+
+                } catch (e) {
+                    if (verdictEl) verdictEl.textContent = 'Error';
+                    if (metaEl) metaEl.textContent = e.message;
+                }
+            },
+
+            initEnsembleTab() {
+                const drop   = document.getElementById('dt-ens-drop');
+                const fileIn = document.getElementById('dt-ens-file');
+                if (!drop || !fileIn) return;
+
+                drop.addEventListener('click', () => fileIn.click());
+                drop.addEventListener('dragover', e => {
+                    e.preventDefault();
+                    drop.style.borderColor = 'var(--primary, #fff)';
+                });
+                drop.addEventListener('dragleave', () => { drop.style.borderColor = ''; });
+                drop.addEventListener('drop', e => {
+                    e.preventDefault();
+                    drop.style.borderColor = '';
+                    const f = e.dataTransfer.files[0];
+                    if (f && f.type.startsWith('image/')) window.DeepTrace.runEnsemble(f);
+                });
+                fileIn.addEventListener('change', () => {
+                    if (fileIn.files[0]) window.DeepTrace.runEnsemble(fileIn.files[0]);
+                });
+            },
         });
 
         // Wire up compare tab switching
@@ -2132,6 +2394,8 @@
             document.getElementById('tab-compare').style.display = 'block';
             const groupPanel = document.getElementById('tab-group');
             if (groupPanel) groupPanel.style.display = 'none';
+            const ensPanel = document.getElementById('tab-ensemble');
+            if (ensPanel) ensPanel.style.display = 'none';
 
             document.querySelectorAll('nav a').forEach(link => {
                 link.classList.remove('nav-link-active', 'text-primary');
@@ -2146,6 +2410,8 @@
             document.getElementById('tab-compare').style.display = 'none';
             const groupPanel = document.getElementById('tab-group');
             if (groupPanel) groupPanel.style.display = 'block';
+            const ensPanel = document.getElementById('tab-ensemble');
+            if (ensPanel) ensPanel.style.display = 'none';
 
             document.querySelectorAll('nav a').forEach(link => {
                 link.classList.remove('nav-link-active', 'text-primary');
@@ -2158,11 +2424,32 @@
             }
         }
 
+        function showEnsembleTab() {
+            document.getElementById('standard-content').style.display = 'none';
+            document.getElementById('tab-compare').style.display = 'none';
+            const groupPanel = document.getElementById('tab-group');
+            if (groupPanel) groupPanel.style.display = 'none';
+            const ensPanel = document.getElementById('tab-ensemble');
+            if (ensPanel) ensPanel.style.display = 'block';
+
+            document.querySelectorAll('nav a').forEach(link => {
+                link.classList.remove('nav-link-active', 'text-primary');
+                link.classList.add('text-on-surface-variant');
+            });
+            const ensLink = document.querySelector('nav a[data-tab="ensemble"]');
+            if (ensLink) {
+                ensLink.classList.add('nav-link-active', 'text-primary');
+                ensLink.classList.remove('text-on-surface-variant');
+            }
+        }
+
         function showStandardTab(targetId) {
             document.getElementById('standard-content').style.display = 'block';
             document.getElementById('tab-compare').style.display = 'none';
             const groupPanel = document.getElementById('tab-group');
             if (groupPanel) groupPanel.style.display = 'none';
+            const ensPanel = document.getElementById('tab-ensemble');
+            if (ensPanel) ensPanel.style.display = 'none';
 
             const target = document.getElementById(targetId);
             if (target) {
@@ -2195,17 +2482,29 @@
             });
         }
 
+        const ensembleLink = document.querySelector('nav a[data-tab="ensemble"]');
+        if (ensembleLink) {
+            ensembleLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                showEnsembleTab();
+            });
+        }
+
         // Initialize selectors and compare tab
         window.DeepTrace.initModelSelector();
         window.DeepTrace.initMethodSelector();
         window.DeepTrace.initCompareTab();
         window.DeepTrace.initGroupTab();
+        window.DeepTrace.initEnsembleTab();
 
         if (window.location.hash === '#section-compare' || window.location.hash === '#compare') {
             showCompareTab();
         }
         if (window.location.hash === '#section-group' || window.location.hash === '#group') {
             showGroupTab();
+        }
+        if (window.location.hash === '#section-ensemble' || window.location.hash === '#ensemble') {
+            showEnsembleTab();
         }
 
         uploadInput.addEventListener('change', async (e) => {

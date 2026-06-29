@@ -8,6 +8,7 @@ from pathlib import Path
 
 import torch
 import torch.nn as nn
+from typing import Optional, Dict, List, Literal, Tuple
 from fastapi import FastAPI, HTTPException, File, UploadFile, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
@@ -50,6 +51,7 @@ from src.deepfake_recognition.utils.explainability.router import (
 from src.deepfake_recognition.utils.explainability.explainability_cache import ExplainCache
 from src.deepfake_recognition.utils.explainability.shap_explainer import ShapExplainer
 from src.deepfake_recognition.utils.calibration import TemperatureScaler
+from src.deepfake_recognition.utils.ensemble import EnsembleScorer
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
 
@@ -58,6 +60,12 @@ AUDIO_PIPELINE = AudioPipeline(
     checkpoint_path="checkpoints/aasist/best.pth",
     device=torch.device("cpu"),   # CPU is fast enough — saves GPU VRAM
     aggregate="mean",
+)
+
+# ── Ensemble scorer (singleton) ──────────────────────────────────────────────
+ENSEMBLE = EnsembleScorer(
+    strategy="weighted_average",    # overridden at startup if weights.json exists
+    weights_path="checkpoints/ensemble/weights.json",
 )
 
 # ── Explainability infrastructure ────────────────────────────────────────────
@@ -107,6 +115,27 @@ def _calibrated_softmax(logits: torch.Tensor, arch: str) -> torch.Tensor:
         return scaler.calibrate(logits)
     return torch.softmax(logits, dim=1)
 
+def _collect_member_probs(
+    tensor: torch.Tensor,               # (1, 3, 224, 224) normalised, on DEVICE
+) -> Dict[str, float]:
+    """
+    Run all loaded MODEL_REGISTRY members on the same tensor.
+    Returns {arch: calibrated_fake_prob} for every loaded model.
+    """
+    results = {}
+    for arch, entry in MODEL_REGISTRY.items():
+        if not entry.get("loaded"):
+            continue
+        net = entry["model"]
+        try:
+            with torch.no_grad():
+                logits = net(tensor)
+            probs = _calibrated_softmax(logits, arch)   # existing helper
+            results[arch] = round(float(probs[0, 0].item()), 4)   # fake_idx=0
+        except Exception as e:
+            print(f"[ensemble] {arch} inference failed: {e}")
+    return results
+
 DEFAULT_MODEL = "resnet18"
 
 # ── Face pipeline (singleton — loaded once at startup) ──────────────────────
@@ -120,7 +149,6 @@ FACE_PIPELINE = FacePipeline(
     max_faces=10,   # prevent DoS on images with many faces
 )
 
-from typing import Optional
 
 def _load_arch(architecture: str, checkpoint_path: Optional[str] = None) -> bool:
     """Load or reload a single architecture into the registry. Returns True on success."""
@@ -181,6 +209,19 @@ async def lifespan(app: FastAPI):
         app.state.predictor = Predictor(MODEL_REGISTRY[DEFAULT_MODEL]["model"], str(DEVICE))
     else:
         app.state.predictor = None
+
+    # Ensemble — auto-detects learned vs weighted_average from weights.json
+    if Path("checkpoints/ensemble/weights.json").exists():
+        try:
+            global ENSEMBLE
+            ENSEMBLE = EnsembleScorer(
+                weights_path="checkpoints/ensemble/weights.json"
+            )
+            print(f"[ensemble] loaded — strategy={ENSEMBLE.strategy}")
+        except Exception as e:
+            print(f"[ensemble] load failed: {e} — using defaults")
+    else:
+        print("[ensemble] weights.json not found — using DEFAULT_WEIGHTS")
         
     yield
 
@@ -548,6 +589,102 @@ async def predict_image(
         "explainability_meta":   explainability_meta,
         "processing_ms":         elapsed_ms,
         "inference_time_ms":     elapsed_ms,
+    }
+
+
+@app.post("/api/predict/ensemble")
+async def predict_ensemble(
+    file:      UploadFile = File(...),
+    strategy:  str        = Query(
+        default="auto",
+        description=(
+            "auto       — use whatever strategy is in weights.json\n"
+            "weighted_average — use fixed per-arch weights\n"
+            "learned    — use fitted logistic regression meta-classifier"
+        ),
+    ),
+    threshold: float = Query(
+        default=0.5,
+        description="Decision threshold for fake vs real (default 0.5)",
+    ),
+):
+    """
+    Run all loaded models on the image and return a single fused verdict.
+    Uses calibrated probabilities and either weighted averaging or a
+    trained meta-classifier to combine per-model predictions.
+    """
+    # Decode image
+    contents = await file.read()
+    try:
+        pil_image = PILImage.open(io.BytesIO(contents)).convert("RGB")
+    except Exception:
+        raise HTTPException(status_code=400, detail="Could not decode image.")
+
+    tensor = pil_to_tensor(pil_image)   # existing helper — (1,3,224,224) on DEVICE
+
+    # Collect per-model calibrated fake probs
+    member_probs = _collect_member_probs(tensor)
+
+    if not member_probs:
+        raise HTTPException(
+            status_code=503,
+            detail="No models loaded in registry. "
+                   "Check /api/models and model checkpoints.",
+        )
+
+    # Override ensemble strategy for this request if specified
+    if strategy == "auto" or strategy == ENSEMBLE.strategy:
+        scorer = ENSEMBLE
+    else:
+        # Build a temporary scorer with the requested strategy
+        scorer = EnsembleScorer(
+            strategy=strategy,
+            weights_path="checkpoints/ensemble/weights.json",
+        )
+
+    result = scorer.score(member_probs)
+
+    # Apply custom threshold
+    ensemble_p  = result["ensemble_fake_prob"]
+    verdict     = "fake" if ensemble_p >= threshold else "real"
+    confidence  = max(ensemble_p, 1 - ensemble_p)
+
+    # Per-model detail (for transparency)
+    per_model = {}
+    for arch, fake_p in member_probs.items():
+        entry = MODEL_REGISTRY.get(arch, {})
+        per_model[arch] = {
+            "fake_prob":   fake_p,
+            "real_prob":   round(1 - fake_p, 4),
+            "verdict":     "fake" if fake_p >= threshold else "real",
+            "temperature": entry.get("temperature", 1.0),
+            "calibrated":  CALIBRATION_REGISTRY.get(arch) is not None,
+            "params":      entry.get("params", 0),
+        }
+
+    return {
+        # Top-level verdict — backward compatible
+        "prediction":  verdict,
+        "confidence":  round(float(confidence), 4),
+        "mode":        "ensemble",
+
+        # Ensemble detail
+        "ensemble": {
+            **result,
+            "threshold": threshold,
+            "verdict":   verdict,           # re-apply threshold
+            "confidence": round(float(confidence), 4),
+        },
+
+        # Per-model breakdown
+        "per_model": per_model,
+
+        # Metadata
+        "n_models_loaded": len(member_probs),
+        "calibration_applied": all(
+            CALIBRATION_REGISTRY.get(a) is not None
+            for a in member_probs
+        ),
     }
 
 
@@ -1005,9 +1142,15 @@ async def compare_models(
         # Aggregate per-model
         any_fake  = any(r["prediction"] == "fake" for r in model_faces)
         agg_conf  = max(r["confidence"] for r in model_faces) if model_faces else 0.0
+        # Calculate P(fake) and P(real) for model aggregation
+        fake_prob = sum(r["probabilities"]["fake"] for r in model_faces) / len(model_faces) if model_faces else 0.5
         results[arch] = {
             "prediction":           "fake" if any_fake else "real",
             "confidence":           agg_conf,
+            "probabilities": {
+                "fake": round(fake_prob, 4),
+                "real": round(1 - fake_prob, 4),
+            },
             "face_results":         model_faces,
             "params":               entry["params"],
             "explainability_method": ("grad_cam" if supports_gradcam(arch)
@@ -1024,6 +1167,18 @@ async def compare_models(
         annotated = FACE_PIPELINE.draw_boxes(pil_image, detections)
         annotated_b64 = image_to_base64(annotated)
 
+    # ── Ensemble verdict ─────────────────────────────────────────────────────
+    # Collect calibrated fake probs from compare results
+    member_probs_compare = {
+        arch: r["probabilities"]["fake"]
+        for arch, r in results.items()
+        if "probabilities" in r and "fake" in r.get("probabilities", {})
+    }
+    ensemble_result = {}
+    if member_probs_compare:
+        ensemble_result = ENSEMBLE.score(member_probs_compare)
+
+    # Return
     return {
         "models":          results,
         "consensus":       consensus,
@@ -1031,6 +1186,7 @@ async def compare_models(
         "faces_detected":  len(detections),
         "mode":            "face_detect" if use_face_crops else "whole_frame",
         "annotated_image": annotated_b64,
+        "ensemble":        ensemble_result,    # ← ADD THIS
     }
 
 AUDIO_MIME_TYPES = {
@@ -1183,6 +1339,29 @@ async def poll_explain_job(job_id: str):
 
 
 
+@app.post("/api/ensemble/reload")
+async def reload_ensemble():
+    """Reload ensemble weights from checkpoints/ensemble/weights.json."""
+    global ENSEMBLE
+    path = "checkpoints/ensemble/weights.json"
+    if not Path(path).exists():
+        raise HTTPException(
+            status_code=404,
+            detail=f"weights.json not found at {path}. "
+                   "Run: python training/fit_ensemble.py"
+        )
+    try:
+        ENSEMBLE = EnsembleScorer(weights_path=path)
+        return {
+            "status":   "reloaded",
+            "strategy": ENSEMBLE.strategy,
+            "weights":  ENSEMBLE.active_weights
+                        if ENSEMBLE.strategy == "weighted_average" else None,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Reload failed: {e}")
+
+
 # ── System / Health / Config Endpoints ────────────────────────────────────────
 
 @app.get("/api/health")
@@ -1196,6 +1375,10 @@ async def health(model: str = Query(default=DEFAULT_MODEL)):
         "audio_model_loaded": AUDIO_PIPELINE.loaded,
         "audio_checkpoint":   AUDIO_PIPELINE.checkpoint_path,
         "explain_queue_pending": EXPLAIN_CACHE.pending_count(),
+        "ensemble_strategy":  ENSEMBLE.strategy,
+        "ensemble_fitted":    ENSEMBLE.is_fitted,
+        "ensemble_members":   list(ENSEMBLE.active_weights.keys())
+                              if ENSEMBLE.strategy == "weighted_average" else [],
         "version": "0.1.0",
         "uptime_seconds": int(time.time() - app.state.start_time),
     }
