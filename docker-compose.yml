@@ -1,14 +1,82 @@
 version: "3.9"
+
 services:
+
+  # ── Redis — message broker + result backend ───────────────────────────────
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes   # persistence across restarts
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ── Celery worker ─────────────────────────────────────────────────────────
+  celery_worker:
+    build: .
+    command: >
+      celery -A celery_app worker
+        --loglevel=info
+        --concurrency=2
+        --queues=video,default
+        --hostname=worker@%h
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      - PYTHONPATH=/app
+    volumes:
+      - .:/app
+      - /tmp/deeptrace_jobs:/tmp/deeptrace_jobs   # shared temp dir for video files
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]   # remove if no GPU in Docker environment
+
+  # ── Celery Flower — task monitoring dashboard ─────────────────────────────
+  flower:
+    build: .
+    command: >
+      celery -A celery_app flower
+        --port=5555
+        --broker=redis://redis:6379/0
+    ports:
+      - "5555:5555"
+    depends_on:
+      - redis
+      - celery_worker
+    restart: unless-stopped
+
+  # ── FastAPI — the existing API server ─────────────────────────────────────
   api:
     build: .
+    command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --workers 2
     ports:
       - "8000:8000"
     environment:
-      - PYTHONPATH=/app/src
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      - PYTHONPATH=/app
       - CORS_ORIGINS=https://yourdomain.com
     volumes:
+      - .:/app
+      - /tmp/deeptrace_jobs:/tmp/deeptrace_jobs
       - ./checkpoints:/app/checkpoints:ro
+    depends_on:
+      redis:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
@@ -16,3 +84,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
+
+volumes:
+  redis_data:
