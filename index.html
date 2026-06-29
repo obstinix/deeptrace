@@ -844,6 +844,117 @@
           color: var(--text-secondary, #888);
           line-height: 1.6;
         }
+        /* ── Async video job UI ──────────────────────────────────────── */
+        .video-job-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 12px;
+        }
+        .video-job-id {
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 10px;
+          color: var(--text-muted, #555);
+          letter-spacing: 0.04em;
+        }
+        .video-progress-track {
+          display: flex;
+          gap: 4px;
+          margin-bottom: 8px;
+          flex-wrap: wrap;
+        }
+        .video-stage-chip {
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 9px;
+          padding: 2px 7px;
+          border-radius: 10px;
+          border: 1px solid var(--border, #333);
+          color: var(--text-muted, #555);
+          transition: all 0.2s;
+        }
+        .video-stage-chip.active {
+          border-color: var(--accent, #00D4FF);
+          color: var(--accent, #00D4FF);
+        }
+        .video-stage-chip.done {
+          border-color: #00d4a0;
+          color: #00d4a0;
+          background: rgba(0, 212, 160, 0.08);
+        }
+        .video-stage-chip.error {
+          border-color: #ff4d4d;
+          color: #ff4d4d;
+        }
+        .video-progress-bar-wrap {
+          height: 3px;
+          background: var(--border, #222);
+          border-radius: 2px;
+          overflow: hidden;
+          margin-bottom: 6px;
+        }
+        .video-progress-bar {
+          height: 100%;
+          background: var(--accent, #00D4FF);
+          border-radius: 2px;
+          transition: width 0.4s ease;
+        }
+        .video-progress-label {
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 11px;
+          color: var(--text-secondary, #aaa);
+          min-height: 16px;
+        }
+        /* ── API key input ───────────────────────────────────────────── */
+        .api-key-input-wrap {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin-bottom: 14px;
+          flex-wrap: wrap;
+        }
+
+        /* ── Usage bars ──────────────────────────────────────────────── */
+        #dt-usage-bars {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          margin-top: 8px;
+        }
+        .usage-row {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .usage-label {
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 10px;
+          color: var(--text-muted, #555);
+          width: 60px;
+          flex-shrink: 0;
+        }
+        .usage-bar-wrap {
+          flex: 1;
+          height: 4px;
+          background: var(--border, #222);
+          border-radius: 2px;
+          overflow: hidden;
+        }
+        .usage-bar-fill {
+          height: 100%;
+          border-radius: 2px;
+          background: var(--accent, #00D4FF);
+          transition: width 0.3s;
+        }
+        .usage-bar-fill.warning { background: #f5a623; }
+        .usage-bar-fill.danger  { background: #ff4d4d; }
+        .usage-count {
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 10px;
+          color: var(--text-secondary, #888);
+          width: 80px;
+          text-align: right;
+          flex-shrink: 0;
+        }
     </style>
 </head>
 <body class="bg-surface font-body-md text-on-surface antialiased transition-colors duration-300 overflow-x-hidden">
@@ -903,6 +1014,21 @@
 <span class="font-label-caps text-label-caps text-primary">Forensic Upload</span>
 <span class="font-data-sm text-data-sm text-on-surface-variant px-sm py-xs recessed border border-outline-variant/20 rounded">ID: 992-04-X</span>
 </div>
+<!-- API Key Input -->
+<div class="api-key-input-wrap mb-md" id="dt-key-wrap">
+  <label class="selector-label">API Key</label>
+  <input
+    type="password"
+    id="dt-api-key"
+    class="control-input"
+    placeholder="dt_…"
+    style="width:220px;font-size:12px;background:var(--bg-surface-container-highest, #1a1a1a);color:var(--text-primary, #fff);border:1px solid var(--border,#333);border-radius:4px;padding:4px 8px"
+    autocomplete="off"
+    spellcheck="false"
+  >
+  <button class="method-pill" id="dt-key-save-btn">Save</button>
+  <span class="calib-badge" id="dt-key-status"></span>
+</div>
 <!-- Model Selector -->
 <div class="model-selector" id="dt-model-selector">
   <label class="selector-label">Detection model</label>
@@ -931,6 +1057,14 @@
     </button>
   </div>
 </div>
+<!-- Usage Panel Slot -->
+<div id="dt-usage-panel" style="display:none" class="recessed p-md rounded-lg mt-md mb-md">
+  <div class="audio-panel-header flex justify-between items-center mb-sm">
+    <span class="audio-panel-title font-label-caps text-label-caps text-primary">Usage</span>
+    <span class="audio-badge" id="dt-usage-tier"></span>
+  </div>
+  <div id="dt-usage-bars"></div>
+</div>
 <!-- Upload Dropzone (Recessed) -->
 <input type="file" id="media-upload" class="hidden" accept="image/jpeg,image/png,image/webp,video/mp4,video/avi,video/quicktime" />
 <div id="dropzone" class="recessed h-[280px] rounded-lg border border-dashed border-outline-variant/30 flex flex-col items-center justify-center gap-md group cursor-pointer hover:border-primary/50 transition-colors bg-surface-container-lowest/50" onclick="document.getElementById('media-upload').click()">
@@ -950,6 +1084,19 @@
         <div id="upload-progress-bar" class="h-full bg-primary w-[0%] transition-all"></div>
     </div>
     <button id="upload-abort-btn" class="mt-xs px-sm py-1 border border-outline-variant text-[11px] font-label-caps uppercase rounded self-end hover:bg-surface-container-highest/20 transition-all">Abort Upload</button>
+</div>
+<!-- Job status panel — shown after async video submission -->
+<div id="dt-video-job" class="mt-md recessed p-md rounded-lg" style="display:none">
+  <div class="video-job-header">
+    <span class="video-job-id" id="dt-video-job-id"></span>
+    <button class="method-pill" id="dt-video-cancel-btn">Cancel</button>
+  </div>
+  <div class="video-progress-track" id="dt-video-progress-track"></div>
+  <div class="video-progress-bar-wrap">
+    <div class="video-progress-bar" id="dt-video-progress-bar" style="width:0%"></div>
+  </div>
+  <div class="video-progress-label" id="dt-video-progress-label">Submitting…</div>
+  <div id="dt-video-result" style="display:none"></div>
 </div>
 <!-- Diagnostics Cluster -->
 <div class="grid grid-cols-2 gap-md mt-lg hidden" id="diagnostics-cluster">
@@ -1562,10 +1709,126 @@
 
         Object.assign(window.DeepTrace, {
             _selectedModel: 'resnet18',
+            _apiKey: localStorage.getItem('dt_api_key') || '',
+
+            getApiKey() {
+                return window.DeepTrace._apiKey;
+            },
+
+            setApiKey(key) {
+                window.DeepTrace._apiKey = key;
+                if (key) {
+                    localStorage.setItem('dt_api_key', key);
+                } else {
+                    localStorage.removeItem('dt_api_key');
+                }
+            },
+
+            // Wrap fetch to inject X-API-Key on every API call
+            async apiFetch(url, options = {}) {
+                const key = window.DeepTrace.getApiKey();
+                const headers = { ...(options.headers || {}) };
+                if (key) headers['X-API-Key'] = key;
+                return fetch(url, { ...options, headers });
+            },
+
+            initKeyInput() {
+                const input    = document.getElementById('dt-api-key');
+                const saveBtn  = document.getElementById('dt-key-save-btn');
+                const statusEl = document.getElementById('dt-key-status');
+
+                // Restore saved key
+                if (input && window.DeepTrace._apiKey) {
+                    input.value = window.DeepTrace._apiKey;
+                    // Trigger initial validation
+                    setTimeout(() => saveBtn?.click(), 100);
+                }
+
+                saveBtn?.addEventListener('click', async () => {
+                    const key = input?.value?.trim() || '';
+                    window.DeepTrace.setApiKey(key);
+
+                    if (!key) {
+                        if (statusEl) { statusEl.className = 'calib-badge uncalibrated'; statusEl.textContent = 'cleared'; }
+                        const panel = document.getElementById('dt-usage-panel');
+                        if (panel) panel.style.display = 'none';
+                        return;
+                    }
+
+                    // Validate by hitting /api/keys/me/usage
+                    try {
+                        const res = await window.DeepTrace.apiFetch(`${API_BASE_URL}/api/keys/me/usage?days=1`);
+                        if (res.ok) {
+                            const data = await res.json();
+                            if (statusEl) {
+                                statusEl.className = 'calib-badge calibrated';
+                                statusEl.textContent = `✓ ${data.tier}`;
+                            }
+                            window.DeepTrace.renderUsagePanel(data);
+                        } else {
+                            if (statusEl) {
+                                statusEl.className = 'calib-badge uncalibrated';
+                                statusEl.textContent = res.status === 401 ? 'invalid key' : `error ${res.status}`;
+                            }
+                            const panel = document.getElementById('dt-usage-panel');
+                            if (panel) panel.style.display = 'none';
+                        }
+                    } catch (e) {
+                        if (statusEl) { statusEl.className = 'calib-badge uncalibrated'; statusEl.textContent = 'unreachable'; }
+                        const panel = document.getElementById('dt-usage-panel');
+                        if (panel) panel.style.display = 'none';
+                    }
+                });
+            },
+
+            renderUsagePanel(data) {
+                const panel    = document.getElementById('dt-usage-panel');
+                const tierEl   = document.getElementById('dt-usage-tier');
+                const barsEl   = document.getElementById('dt-usage-bars');
+                if (!panel) return;
+
+                panel.style.display = '';
+                if (tierEl) {
+                    tierEl.className = 'audio-badge bonafide';
+                    tierEl.textContent = (data.tier || '').toUpperCase();
+                }
+                if (!barsEl) return;
+
+                // Aggregate usage from today's records
+                const today = new Date().toISOString().slice(0, 10);
+                const todayUsage = (data.usage || []).filter(u => u.date === today);
+                const totalReqs  = todayUsage.reduce((s, u) => s + u.requests, 0);
+
+                // Pull limits from known tier data (or hardcode for display)
+                const tierLimits = {
+                    free:  { minute: 10,  hour: 100,    day: 500     },
+                    pro:   { minute: 60,  hour: 1000,   day: 10000   },
+                    admin: { minute: 600, hour: 100000, day: 1000000 },
+                };
+                const limits = tierLimits[data.tier] || tierLimits.free;
+
+                barsEl.innerHTML = '';
+                [
+                    { label: 'Today', used: totalReqs, limit: limits.day },
+                ].forEach(({ label, used, limit }) => {
+                    const pct    = Math.min(100, Math.round((used / limit) * 100));
+                    const cls    = pct > 90 ? 'danger' : pct > 70 ? 'warning' : '';
+                    const row    = document.createElement('div');
+                    row.className = 'usage-row';
+                    row.innerHTML = `
+                        <div class="usage-label">${label}</div>
+                        <div class="usage-bar-wrap">
+                            <div class="usage-bar-fill ${cls}" style="width:${pct}%"></div>
+                        </div>
+                        <div class="usage-count">${used} / ${limit.toLocaleString()}</div>
+                    `;
+                    barsEl.appendChild(row);
+                });
+            },
 
             async initModelSelector() {
                 try {
-                    const res  = await fetch(`${API_BASE_URL}/api/models`);
+                    const res  = await window.DeepTrace.apiFetch(`${API_BASE_URL}/api/models`);
                     const data = await res.json();
                     const pills = document.getElementById('dt-model-pills');
                     if (!pills) return;
@@ -1610,7 +1873,7 @@
                 form.append('file', file);
 
                 try {
-                    const res  = await fetch(`${API_BASE_URL}/api/compare`, { method: 'POST', body: form });
+                    const res  = await window.DeepTrace.apiFetch(`${API_BASE_URL}/api/compare`, { method: 'POST', body: form });
                     const data = await res.json();
 
                     // Annotated comparison image
@@ -1722,7 +1985,7 @@
                             + `&include_explainability=false`;
 
                 try {
-                    const res  = await fetch(url, { method: 'POST', body: form });
+                    const res  = await window.DeepTrace.apiFetch(url, { method: 'POST', body: form });
                     const data = await res.json();
                     window.DeepTrace._groupData = data;
 
@@ -1905,14 +2168,14 @@
                             if (['lime', 'shap'].includes(nextMethod)) {
                                 const form = new FormData();
                                 form.append('file', file);
-                                const res = await fetch(API_BASE_URL + `/api/explain?model=${arch}&method=${nextMethod}`, { method: 'POST', body: form });
+                                const res = await window.DeepTrace.apiFetch(API_BASE_URL + `/api/explain?model=${arch}&method=${nextMethod}`, { method: 'POST', body: form });
                                 if (!res.ok) return;
                                 const job = await res.json();
                                 window.DeepTrace._pollExplainJob(job.job_id, job.estimated_seconds, nextMethod, file);
                             } else {
                                 const form = new FormData();
                                 form.append('file', file);
-                                const res = await fetch(API_BASE_URL + `/api/predict/image?model=${arch}&explain_method=${nextMethod}`, { method: 'POST', body: form });
+                                const res = await window.DeepTrace.apiFetch(API_BASE_URL + `/api/predict/image?model=${arch}&explain_method=${nextMethod}`, { method: 'POST', body: form });
                                 if (!res.ok) return;
                                 const data = await res.json();
                                 window.DeepTrace._storeExplainForComparison(nextMethod, data.explainability, data.explainability_meta);
@@ -1940,7 +2203,7 @@
                     const form = new FormData();
                     form.append('file', file);
                     const url  = `/api/predict/image?model=${model}&explain_method=${method}`;
-                    const res  = await fetch(API_BASE_URL + url, { method: 'POST', body: form });
+                    const res  = await window.DeepTrace.apiFetch(API_BASE_URL + url, { method: 'POST', body: form });
                     if (!res.ok) {
                         const err = await res.json().catch(() => ({}));
                         throw new Error(err.detail || `HTTP ${res.status}`);
@@ -1955,7 +2218,7 @@
                 // Step 1: fast predict (auto explain for immediate feedback)
                 const form1 = new FormData();
                 form1.append('file', file);
-                const res1  = await fetch(API_BASE_URL + `/api/predict/image?model=${model}&explain_method=auto`,
+                const res1  = await window.DeepTrace.apiFetch(API_BASE_URL + `/api/predict/image?model=${model}&explain_method=auto`,
                                           { method: 'POST', body: form1 });
                 if (!res1.ok) {
                     const err = await res1.json().catch(() => ({}));
@@ -1971,7 +2234,7 @@
                 // Step 2: submit async explain job
                 const form2 = new FormData();
                 form2.append('file', file);
-                const res2  = await fetch(
+                const res2  = await window.DeepTrace.apiFetch(
                     API_BASE_URL + `/api/explain?model=${model}&method=${method}`,
                     { method: 'POST', body: form2 },
                 );
@@ -2011,7 +2274,7 @@
 
                 const poll = async () => {
                     try {
-                        const res    = await fetch(API_BASE_URL + `/api/explain/${jobId}`);
+                        const res    = await window.DeepTrace.apiFetch(API_BASE_URL + `/api/explain/${jobId}`);
                         if (!res.ok) return;
                         const status = await res.json();
 
@@ -2292,7 +2555,7 @@
                 form.append('file', file);
 
                 try {
-                    const res  = await fetch(
+                    const res  = await window.DeepTrace.apiFetch(
                         `/api/predict/ensemble?strategy=${strategy}&threshold=${threshold}`,
                         { method: 'POST', body: form }
                     );
@@ -2492,6 +2755,7 @@
 
         // Initialize selectors and compare tab
         window.DeepTrace.initModelSelector();
+        window.DeepTrace.initKeyInput();
         window.DeepTrace.initMethodSelector();
         window.DeepTrace.initCompareTab();
         window.DeepTrace.initGroupTab();
@@ -2518,9 +2782,7 @@
             confidenceText.textContent = '--%';
 
             const isVideo = file.type.startsWith('video');
-            const baseEndpoint = isVideo ? '/api/predict/video' : '/api/predict/image';
-            const endpoint = `${baseEndpoint}?model=${window.DeepTrace._selectedModel}`;
-            
+
             document.getElementById('diagnostics-cluster').classList.remove('hidden');
             document.getElementById('gradcam-container').classList.add('hidden');
             document.getElementById('frame-timeline-container').classList.add('hidden');
@@ -2533,42 +2795,144 @@
             if (progressEl) progressEl.style.display = 'none';
             const compareEl = document.getElementById('dt-explain-compare');
             if (compareEl) compareEl.style.display = 'none';
-            
+
             const formData = new FormData();
             formData.append('file', file);
 
             const progressContainer = document.getElementById('upload-progress-container');
             const progressBar = document.getElementById('upload-progress-bar');
             const progressPct = document.getElementById('upload-pct');
-            
-            if (isVideo) {
-                progressContainer.classList.remove('hidden');
-                progressBar.style.width = '0%';
-                progressPct.textContent = '0%';
-            } else {
-                progressContainer.classList.add('hidden');
-            }
 
-            try {
-                let data;
-                if (isVideo) {
-                    data = await uploadWithProgress(endpoint, formData, (percent) => {
-                        progressBar.style.width = `${percent}%`;
-                        progressPct.textContent = `${percent}%`;
-                    });
-                    progressContainer.classList.add('hidden');
-                    window.DeepTrace.renderPredictResult(data, file.name);
-                } else {
-                    progressContainer.classList.add('hidden');
-                    await window.DeepTrace.runPredict(file);
-                }
-            } catch (error) {
-                console.error(error);
+            if (isVideo) {
+                // ── Async video pipeline ────────────────────────────────
+                const jobPanel  = document.getElementById('dt-video-job');
+                const jobIdEl   = document.getElementById('dt-video-job-id');
+                const trackEl   = document.getElementById('dt-video-progress-track');
+                const barEl     = document.getElementById('dt-video-progress-bar');
+                const labelEl   = document.getElementById('dt-video-progress-label');
+                const resultEl  = document.getElementById('dt-video-result');
+                const cancelBtn = document.getElementById('dt-video-cancel-btn');
+
+                // Show job panel, hide upload progress
                 progressContainer.classList.add('hidden');
-                dropzoneText.textContent = "Analysis Failed. Click to retry.";
-                statusText.textContent = "Error: " + error.message;
-                verdictText.textContent = "ERROR";
-                verdictBar.style.width = '0%';
+                if (jobPanel)  jobPanel.style.display  = '';
+                if (resultEl)  resultEl.style.display  = 'none';
+                if (barEl)     barEl.style.width       = '0%';
+                if (labelEl)   labelEl.textContent     = 'Uploading…';
+
+                const STAGES = [
+                    'extracting_frames',
+                    'visual_inference',
+                    'ensemble_inference',
+                    'audio_analysis',
+                    'fusion',
+                    'done',
+                ];
+
+                // Build stage chips
+                if (trackEl) {
+                    trackEl.innerHTML = '';
+                    STAGES.forEach(stage => {
+                        const chip = document.createElement('div');
+                        chip.className = 'video-stage-chip';
+                        chip.id        = `dt-stage-${stage}`;
+                        chip.textContent = stage.replace(/_/g, ' ');
+                        trackEl.appendChild(chip);
+                    });
+                }
+
+                // Submit async job
+                const selectedModel = window.DeepTrace._selectedModel || 'resnet18';
+                try {
+                    const res  = await window.DeepTrace.apiFetch(
+                        `${API_BASE_URL}/api/predict/video?model=${selectedModel}&sample_every_n_sec=5&max_frames=120`,
+                        { method: 'POST', body: formData }
+                    );
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.detail || res.statusText);
+
+                    const jobId = data.job_id;
+                    if (jobIdEl) jobIdEl.textContent = `job: ${jobId.slice(0, 8)}…`;
+                    if (labelEl) labelEl.textContent = 'Queued — waiting for worker…';
+
+                    // Wire cancel button
+                    if (cancelBtn) {
+                        cancelBtn.onclick = async () => {
+                            await window.DeepTrace.apiFetch(`${API_BASE_URL}/api/jobs/${jobId}/cancel`, { method: 'POST' });
+                            if (labelEl) labelEl.textContent = 'Cancellation requested…';
+                        };
+                    }
+
+                    // Start polling
+                    let pollTimer = null;
+                    const poll = async () => {
+                        try {
+                            const pollRes = await window.DeepTrace.apiFetch(`${API_BASE_URL}/api/jobs/${jobId}`);
+                            const job     = await pollRes.json();
+
+                            // Update progress bar + label
+                            const events  = job.progress || [];
+                            const latest  = events[0];
+                            if (latest) {
+                                const pct = latest.pct || 0;
+                                if (barEl) barEl.style.width = pct + '%';
+                                if (labelEl) labelEl.textContent = latest.message || '';
+
+                                // Update stage chips
+                                const stageIdx = STAGES.indexOf(latest.stage);
+                                STAGES.forEach((s, i) => {
+                                    const chip = document.getElementById(`dt-stage-${s}`);
+                                    if (!chip) return;
+                                    chip.className = 'video-stage-chip ' + (
+                                        job.status === 'error' ? (s === latest.stage ? 'error' : '') :
+                                        s === latest.stage     ? 'active' :
+                                        i < stageIdx || pct === 100 ? 'done' : ''
+                                    );
+                                });
+                            }
+
+                            if (job.status === 'done' && job.result) {
+                                // Render result using existing functions
+                                window.DeepTrace.renderPredictResult(job.result, file.name);
+                                renderAudioResult(job.result);
+                                dropzoneText.textContent = 'Drag & Drop Forensic Media';
+                                addToHistory(file.name, job.result.prediction, job.result.confidence, Math.round((job.result.elapsed_sec || 0) * 1000));
+                            } else if (job.status === 'error' || job.status === 'cancelled') {
+                                dropzoneText.textContent = `Analysis ${job.status}. Click to retry.`;
+                                statusText.textContent = `Job ${job.status}`;
+                                verdictText.textContent = job.status.toUpperCase();
+                                verdictBar.style.width = '0%';
+                            } else {
+                                pollTimer = setTimeout(poll, 3000);
+                            }
+                        } catch (pollErr) {
+                            pollTimer = setTimeout(poll, 5000);
+                        }
+                    };
+                    poll();
+
+                } catch (submitErr) {
+                    console.error(submitErr);
+                    if (labelEl) labelEl.textContent = `Submission failed: ${submitErr.message}`;
+                    dropzoneText.textContent = 'Analysis Failed. Click to retry.';
+                    statusText.textContent = 'Error: ' + submitErr.message;
+                    verdictText.textContent = 'ERROR';
+                    verdictBar.style.width = '0%';
+                }
+            } else {
+                // ── Image pipeline (unchanged) ─────────────────────────
+                progressContainer.classList.add('hidden');
+                const jobPanel = document.getElementById('dt-video-job');
+                if (jobPanel) jobPanel.style.display = 'none';
+                try {
+                    await window.DeepTrace.runPredict(file);
+                } catch (error) {
+                    console.error(error);
+                    dropzoneText.textContent = "Analysis Failed. Click to retry.";
+                    statusText.textContent = "Error: " + error.message;
+                    verdictText.textContent = "ERROR";
+                    verdictBar.style.width = '0%';
+                }
             }
             uploadInput.value = ''; // Reset
         });
