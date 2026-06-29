@@ -280,18 +280,21 @@ def main():
     args   = parse_args()
     cfg    = load_config(args.config)
     
-    # Enable MPS for acceleration on Apple Silicon/Mac GPU
-    device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
+    # Determine architecture — CLI flag overrides config
+    arch = args.arch or cfg["model"]["architecture"]
+    cfg["model"]["architecture"] = arch   # normalise for logging
+
+    # Enable MPS for acceleration on Apple Silicon/Mac GPU (fallback to CPU for ViT to avoid MPS freezes)
+    if arch == "vit_b16":
+        device = torch.device("cpu")
+    else:
+        device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
     print(f"[init] device={device}")
 
     Path(cfg["logging"]["checkpoint_dir"]).mkdir(parents=True, exist_ok=True)
     Path(cfg["logging"]["log_dir"]).mkdir(parents=True, exist_ok=True)
 
     train_loader, val_loader, test_loader, class_to_idx = build_loaders(cfg)
-    
-    # Determine architecture — CLI flag overrides config
-    arch = args.arch or cfg["model"]["architecture"]
-    cfg["model"]["architecture"] = arch   # normalise for logging
 
     model = factory_build(
         architecture=arch,

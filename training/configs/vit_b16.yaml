@@ -10,7 +10,7 @@ data:
   val_dir:   data/frames/val
   test_dir:  data/frames/test
   image_size: 224     # patch16 expects 224×224 (14×14 grid of 16×16 patches)
-  num_workers: 4
+  num_workers: 0
 
 training:
   epochs: 2          # Run 2 epochs for quick verification and metrics logging
