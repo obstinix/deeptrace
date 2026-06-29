@@ -416,7 +416,8 @@ def main():
     # ── Post-Training Temperature Calibration ──────────────────────────────
     print("\n[calibration] starting post-training temperature calibration …")
     try:
-        from training.calibrate import calibrate_arch
+        sys.path.insert(0, str(Path(__file__).parent))
+        from calibrate import calibrate_arch
         val_dir = cfg.get("data", {}).get("val_dir", "data/frames/val")
         if not os.path.exists(val_dir):
             val_dir = "data/frames_face/val"

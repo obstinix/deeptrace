@@ -13,13 +13,13 @@ data:
   num_workers: 0
 
 training:
-  epochs: 50
+  epochs: 3
   batch_size: 32              # reduce to 16 if OOM on 8 GB VRAM
   learning_rate: 1.0e-4       # conservative start for fine-tuning
   weight_decay: 1.0e-4
   scheduler: cosine           # cosine annealing over all epochs
-  warmup_epochs: 3
-  early_stopping_patience: 8  # stop if val_acc doesn't improve for 8 epochs
+  warmup_epochs: 1
+  early_stopping_patience: 3  # stop if val_acc doesn't improve for 8 epochs
   class_weights: auto         # compute from class frequencies at runtime
   mixed_precision: true       # torch.autocast — halves memory, ~30% faster
 
