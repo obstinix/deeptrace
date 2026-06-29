@@ -5,19 +5,33 @@ from PIL import Image
 
 sys.path.insert(0, "src")
 
+# Set up dependency overrides for tests so they bypass auth
+from api.main import app
+from api.auth.middleware import require_auth, AuthContext
+from api.auth.tiers import get_tier
+
+async def override_require_auth():
+    return AuthContext(
+        key_id="test-key",
+        name="test-key",
+        tier=get_tier("free"),
+        rate_limit_state={}
+    )
+
+app.dependency_overrides[require_auth] = override_require_auth
+
+
 def _jpeg(size=(64,64)):
     buf = BytesIO()
     Image.new("RGB", size, (100,150,200)).save(buf, format="JPEG")
     return buf.getvalue()
 
 def test_health():
-    from api.main import app
     from fastapi.testclient import TestClient
     r = TestClient(app).get("/api/health")
     assert r.status_code == 200 and r.json()["status"] == "ok"
 
 def test_predict_no_model_503():
-    from api.main import app
     from fastapi.testclient import TestClient
     app.state.predictor = None
     r = TestClient(app).post("/api/predict/image",
@@ -25,7 +39,6 @@ def test_predict_no_model_503():
     assert r.status_code == 503
 
 def test_predict_too_large_413():
-    from api.main import app
     from fastapi.testclient import TestClient
     app.state.predictor = object()
     r = TestClient(app).post("/api/predict/image",
@@ -33,7 +46,6 @@ def test_predict_too_large_413():
     assert r.status_code == 413
 
 def test_predict_wrong_type_415():
-    from api.main import app
     from fastapi.testclient import TestClient
     app.state.predictor = object()
     r = TestClient(app).post("/api/predict/image",
