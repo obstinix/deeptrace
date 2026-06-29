@@ -413,6 +413,18 @@ def main():
     save_confusion_matrix(cm, cfg["logging"]["confusion_matrix"])
     save_roc_curve(fpr, tpr, auc, cfg["logging"]["roc_curve"])
 
+    # ── Post-Training Temperature Calibration ──────────────────────────────
+    print("\n[calibration] starting post-training temperature calibration …")
+    try:
+        from training.calibrate import calibrate_arch
+        val_dir = cfg.get("data", {}).get("val_dir", "data/frames/val")
+        if not os.path.exists(val_dir):
+            val_dir = "data/frames_face/val"
+        arch = cfg["model"]["architecture"]
+        calibrate_arch(arch, val_dir, str(ckpt_path), device)
+    except Exception as e:
+        print(f"[calibration] auto-calibration failed: {e}")
+
     print(f"\n✓ Training complete — best val acc: {best_val_acc:.4f} | test acc: {acc:.4f} | AUC: {auc:.4f}")
     if acc < 0.90:
         print("[warn] test accuracy below 90% target — consider more epochs or data cleaning")

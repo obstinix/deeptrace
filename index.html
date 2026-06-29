@@ -370,6 +370,32 @@
           background: var(--accent, #00D4FF);
         }
 
+        /* ── Calibration badge ──────────────────────────────────────── */
+        .calibration-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 9px;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          padding: 2px 7px;
+          border-radius: 10px;
+          margin-left: 6px;
+          vertical-align: middle;
+          transition: opacity 0.3s ease;
+        }
+        .calibration-badge.calibrated {
+          color: #2dd4bf;
+          background: rgba(45, 212, 191, 0.12);
+          border: 1px solid rgba(45, 212, 191, 0.3);
+        }
+        .calibration-badge.uncalibrated {
+          color: #f59e0b;
+          background: rgba(245, 158, 11, 0.12);
+          border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
         /* ── Group tab controls ──────────────────────────────────────── */
         .group-controls {
           display: flex;
@@ -1405,7 +1431,7 @@
                             ? 'Attention Rollout'
                             : 'Grad-CAM';
                         pill.title = info.loaded
-                            ? `${(info.params / 1e6).toFixed(1)}M params · ${expMethod} · ${info.checkpoint}`
+                            ? `${(info.params / 1e6).toFixed(1)}M params · ${expMethod} · ${info.calibrated ? 'T=' + info.temperature.toFixed(2) + ' (calibrated)' : 'Uncalibrated'} · ${info.checkpoint}`
                             : `Checkpoint not found: ${info.checkpoint}`;
                         pill.textContent = arch.replace('_', '-');
                         if (info.loaded) {
@@ -1952,7 +1978,13 @@
                  
                 const conf = Math.round(data.confidence * 100);
                 verdictBar.style.width = `${conf}%`;
-                confidenceText.textContent = `${conf}%`;
+
+                // Calibration badge next to confidence
+                const calMeta = data.calibration || {};
+                const calBadgeHtml = calMeta.calibrated
+                    ? `<span class="calibration-badge calibrated" title="Temperature: ${calMeta.temperature || '?'}\nECE improvement: ${calMeta.ece_improvement != null ? (calMeta.ece_improvement * 100).toFixed(1) + '%' : 'N/A'}">✓ Calibrated</span>`
+                    : `<span class="calibration-badge uncalibrated" title="Raw softmax — no temperature scaling">⚠ Uncalibrated</span>`;
+                confidenceText.innerHTML = `${conf}% ${calBadgeHtml}`;
                 speedText.textContent = `${data.processing_ms} ms`;
                 addToHistory(filename, data.label, data.confidence, data.processing_ms);
 

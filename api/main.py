@@ -49,6 +49,7 @@ from src.deepfake_recognition.utils.explainability.router import (
 )
 from src.deepfake_recognition.utils.explainability.explainability_cache import ExplainCache
 from src.deepfake_recognition.utils.explainability.shap_explainer import ShapExplainer
+from src.deepfake_recognition.utils.calibration import TemperatureScaler
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
 
@@ -73,6 +74,38 @@ MODEL_REGISTRY: dict = {
     arch: {"model": None, "loaded": False, "checkpoint": ckpt, "params": 0}
     for arch, ckpt in SUPPORTED_ARCHITECTURES.items()
 }
+
+# ── Calibration registry — per-architecture temperature scalers ──────────────
+CALIBRATION_REGISTRY: dict = {
+    arch: None for arch in SUPPORTED_ARCHITECTURES
+}
+
+def _load_calibration(arch: str) -> bool:
+    """Attempt to load temperature.json for the given architecture. Returns True on success."""
+    ckpt = MODEL_REGISTRY.get(arch, {}).get("checkpoint", "")
+    if not ckpt:
+        return False
+    temp_path = Path(ckpt).parent / "temperature.json"
+    if not temp_path.exists():
+        print(f"[calibration] {arch}: no temperature.json found — using T=1.0")
+        CALIBRATION_REGISTRY[arch] = None
+        return False
+    try:
+        scaler = TemperatureScaler.load(str(temp_path))
+        CALIBRATION_REGISTRY[arch] = scaler
+        print(f"[calibration] {arch}: loaded T={scaler.temperature:.4f} from {temp_path}")
+        return True
+    except Exception as e:
+        print(f"[calibration] {arch}: failed to load — {e}")
+        CALIBRATION_REGISTRY[arch] = None
+        return False
+
+def _calibrated_softmax(logits: torch.Tensor, arch: str) -> torch.Tensor:
+    """Apply calibrated softmax (temperature scaling) if available, else raw softmax."""
+    scaler = CALIBRATION_REGISTRY.get(arch)
+    if scaler is not None:
+        return scaler.calibrate(logits)
+    return torch.softmax(logits, dim=1)
 
 DEFAULT_MODEL = "resnet18"
 
@@ -121,6 +154,10 @@ async def lifespan(app: FastAPI):
     # Load all available checkpoints
     for arch in SUPPORTED_ARCHITECTURES:
         _load_arch(arch)
+    
+    # Load temperature calibration files for all architectures
+    for arch in SUPPORTED_ARCHITECTURES:
+        _load_calibration(arch)
     
     # Load audio pipeline
     AUDIO_PIPELINE.load()
@@ -211,7 +248,7 @@ def _run_inference_on_crop(
     t0     = time.perf_counter()
     with torch.no_grad():
         logits = net(tensor)
-        probs  = torch.softmax(logits, dim=1)[0]
+        probs  = _calibrated_softmax(logits, arch)[0]
     ms = (time.perf_counter() - t0) * 1000
 
     # Determine class indices — align with training class_to_idx
@@ -281,7 +318,7 @@ def _run_batched_inference(
     t0 = time.perf_counter()
     with torch.no_grad():
         logits_batch = net(tensors)                       # (N, 2)
-        probs_batch  = torch.softmax(logits_batch, dim=1) # (N, 2)
+        probs_batch  = _calibrated_softmax(logits_batch, arch) # (N, 2)
     total_ms = (time.perf_counter() - t0) * 1000
 
     results = []
@@ -416,6 +453,15 @@ async def predict_image(
                             if r["prediction"] == "fake"]
 
             elapsed_ms = round((time.perf_counter() - t0_total) * 1000, 1)
+
+            # Calibration metadata
+            cal = CALIBRATION_REGISTRY.get(arch)
+            cal_meta = {
+                "calibrated": cal is not None,
+                "temperature": round(cal.temperature, 4) if cal else 1.0,
+                "ece_improvement": cal.ece_improvement if cal and cal.ece_improvement is not None else None,
+            }
+
             return {
                 # Top-level aggregate — backward compatible
                 "label":       agg_verdict,
@@ -433,6 +479,9 @@ async def predict_image(
                 "face_results":    face_results,
                 "annotated_image": annotated_b64,
 
+                # Calibration
+                "calibration":           cal_meta,
+
                 # Backward-compat: first face explainability at top level
                 "gradcam_image":         face_results[0]["explainability"],
                 "explainability":        face_results[0]["explainability"],
@@ -448,7 +497,7 @@ async def predict_image(
     t0 = time.perf_counter()
     with torch.no_grad():
         logits = net(tensor)
-        probs  = torch.softmax(logits, dim=1)[0]
+        probs  = _calibrated_softmax(logits, arch)[0]
     ms = (time.perf_counter() - t0) * 1000
 
     fake_prob = probs[0].item()
@@ -473,6 +522,14 @@ async def predict_image(
         print(f"[explainability] whole-frame {arch}: {e}")
 
     elapsed_ms = round((time.perf_counter() - t0_total) * 1000, 1)
+    # Build calibration metadata for the response
+    cal = CALIBRATION_REGISTRY.get(arch)
+    cal_meta = {
+        "calibrated": cal is not None,
+        "temperature": round(cal.temperature, 4) if cal else 1.0,
+        "ece_improvement": cal.ece_improvement if cal and cal.ece_improvement is not None else None,
+    }
+
     return {
         "label":        verdict,
         "prediction":  verdict,
@@ -484,6 +541,7 @@ async def predict_image(
             "fake": round(fake_prob, 4),
             "real": round(real_prob, 4),
         },
+        "calibration":           cal_meta,
         "explainability":        explainability,
         "gradcam_image":         explainability,
         "explainability_method": exp_method,
@@ -588,7 +646,7 @@ async def predict_group(
         t0 = time.perf_counter()
         with torch.no_grad():
             logits = net(tensor)
-            probs  = torch.softmax(logits, dim=1)[0]
+            probs  = _calibrated_softmax(logits, arch)[0]
         ms = (time.perf_counter() - t0) * 1000
 
         fake_p = probs[0].item()
@@ -704,7 +762,7 @@ async def predict_video(
             input_tensor = tf(img).unsqueeze(0).to(DEVICE)
             with torch.no_grad():
                 logits = net(input_tensor)
-                probs = F.softmax(logits, dim=1)[0]
+                probs = _calibrated_softmax(logits, arch)[0]
             
             prob_fake = probs[0].item()
             prob_real = probs[1].item()
@@ -791,15 +849,18 @@ async def predict_video(
 @app.get("/api/models")
 async def list_models():
     """Return the status of every registered model."""
-    return {
-        arch: {
+    result = {}
+    for arch, entry in MODEL_REGISTRY.items():
+        cal = CALIBRATION_REGISTRY.get(arch)
+        result[arch] = {
             "loaded":     entry["loaded"],
             "checkpoint": entry["checkpoint"],
             "params":     entry["params"],
             "explainability_method": "grad_cam" if supports_gradcam(arch) else "attention_rollout",
+            "calibrated": cal is not None,
+            "temperature": round(cal.temperature, 4) if cal else None,
         }
-        for arch, entry in MODEL_REGISTRY.items()
-    }
+    return result
 
 
 @app.post("/api/model/load")
@@ -847,6 +908,48 @@ async def reload_model(request: Request):
         "architecture": arch,
         "checkpoint": MODEL_REGISTRY[arch]["checkpoint"],
         "params":     MODEL_REGISTRY[arch]["params"],
+    }
+
+
+@app.post("/api/model/calibrate")
+async def reload_calibration(request: Request):
+    """
+    Hot-reload temperature calibration for one or all architectures.
+
+    Body (JSON):
+        {"architecture": "resnet18"}       — reload one
+        {} or {"architecture": "all"}      — reload all
+
+    Returns the updated calibration state.
+    """
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+
+    arch = body.get("architecture", "all").lower()
+
+    if arch == "all":
+        results = {}
+        for a in SUPPORTED_ARCHITECTURES:
+            ok = _load_calibration(a)
+            cal = CALIBRATION_REGISTRY.get(a)
+            results[a] = {
+                "calibrated": cal is not None,
+                "temperature": round(cal.temperature, 4) if cal else None,
+            }
+        return {"status": "reloaded", "architectures": results}
+
+    if arch not in SUPPORTED_ARCHITECTURES:
+        raise HTTPException(400, f"Unknown architecture: '{arch}'")
+
+    ok = _load_calibration(arch)
+    cal = CALIBRATION_REGISTRY.get(arch)
+    return {
+        "status": "reloaded" if ok else "no_calibration",
+        "architecture": arch,
+        "calibrated": cal is not None,
+        "temperature": round(cal.temperature, 4) if cal else None,
     }
 
 
