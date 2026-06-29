@@ -13,13 +13,13 @@ data:
   num_workers: 0
 
 training:
-  epochs: 50
+  epochs: 3
   batch_size: 32          # EfficientNet-B0 is smaller than ResNet-18; fits fine
   learning_rate: 5.0e-5   # lower LR — EfficientNet is more sensitive
   weight_decay: 1.0e-4
   scheduler: cosine
-  warmup_epochs: 5        # longer warmup for compound scaling models
-  early_stopping_patience: 10
+  warmup_epochs: 1
+  early_stopping_patience: 3
   class_weights: auto
   mixed_precision: true
 

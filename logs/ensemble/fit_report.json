@@ -6,18 +6,18 @@
     "vit_b16"
   ],
   "n_val_samples": 212,
-  "ensemble_auc": 0.725706,
-  "ensemble_acc": 0.679245,
-  "best_individual_auc": 0.645676,
-  "auc_improvement": 0.08003,
+  "ensemble_auc": 0.995368,
+  "ensemble_acc": 0.971698,
+  "best_individual_auc": 0.994299,
+  "auc_improvement": 0.001069,
   "individual_metrics": {
     "resnet18": {
-      "auc": 0.645676,
-      "acc": 0.542453
+      "auc": 0.535673,
+      "acc": 0.485849
     },
     "efficientnet_b0": {
-      "auc": 0.543422,
-      "acc": 0.54717
+      "auc": 0.994299,
+      "acc": 0.971698
     },
     "vit_b16": {
       "auc": 0.340429,
