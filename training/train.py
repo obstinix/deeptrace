@@ -608,7 +608,7 @@ def main():
             "history": history,
         }, last_path)
 
-        if patience_left == 0:
+        if patience_left <= 0:
             print(f"[train] early stopping at epoch {epoch}")
             break
 
