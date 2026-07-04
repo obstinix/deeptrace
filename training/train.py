@@ -542,7 +542,7 @@ def main():
             print("[resume] Resumed epoch is after freeze window. Unfreezing backbone and lowering base LRs.")
             set_backbone_frozen(model, arch, freeze=False)
             backbone_unfrozen_done = True
-            scheduler.base_lrs = [lr * 0.1 for lr in scheduler.base_lrs]
+            scale_scheduler_lr(scheduler, 0.1)
             
         print(f"[resume] Resuming from epoch {start_epoch} | best_val_acc: {best_val_acc:.4f} | patience_left: {patience_left}")
 
