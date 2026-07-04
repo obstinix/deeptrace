@@ -147,14 +147,9 @@ def download_140k(output: Path):
     with zipfile.ZipFile(zip_path, "r") as z:
         z.extractall(raw)
 
-    # Locate and merge all splits into output/real and output/fake
-    real_out = output / "real"
-    fake_out = output / "fake"
-    real_out.mkdir(parents=True, exist_ok=True)
-    fake_out.mkdir(parents=True, exist_ok=True)
-
     copied = {"real": 0, "fake": 0}
     for split in ["train", "valid", "test"]:
+        dst_split = "val" if split == "valid" else split
         for cls in ["real", "fake"]:
             src = raw / "real_vs_fake" / "real-vs-fake" / split / cls
             if not src.exists():
@@ -162,13 +157,17 @@ def download_140k(output: Path):
                 src = raw / split / cls
             if not src.exists():
                 continue
-            dst = real_out if cls == "real" else fake_out
+            dst = output / dst_split / cls
+            dst.mkdir(parents=True, exist_ok=True)
             for img in tqdm(list(src.glob("*.jpg")) + list(src.glob("*.png")),
                             desc=f"{split}/{cls}"):
-                shutil.copy2(img, dst / f"{split}_{img.name}")
+                shutil.copy2(img, dst / img.name)
                 copied[cls] += 1
 
-    zip_path.unlink()
+    shutil.rmtree(raw, ignore_errors=True)
+    zip_path.unlink(missing_ok=True)
+
+    deduplicate_dataset(output)
     _print_stats(output, copied)
 
 
@@ -394,35 +393,77 @@ def setup_kaggle():
 
 # ─── Utilities ────────────────────────────────────────────────────────────────
 
+def deduplicate_dataset(output: Path):
+    import hashlib
+    print("Checking for duplicate images across splits by file hash...")
+    seen_hashes = {}
+    duplicates_removed = 0
+    
+    for split in ["train", "val", "test"]:
+        for cls in ["real", "fake"]:
+            dir_path = output / split / cls
+            if not dir_path.exists():
+                continue
+            for img_path in list(dir_path.glob("*.jpg")) + list(dir_path.glob("*.png")):
+                try:
+                    with open(img_path, "rb") as f:
+                        file_hash = hashlib.md5(f.read()).hexdigest()
+                    if file_hash in seen_hashes:
+                        img_path.unlink()
+                        duplicates_removed += 1
+                    else:
+                        seen_hashes[file_hash] = f"{split}/{cls}/{img_path.name}"
+                except Exception as e:
+                    print(f"Error checking hash for {img_path}: {e}")
+    print(f"Deduplication complete. Removed {duplicates_removed} duplicate images.")
+
+
 def verify_dataset(path: Path):
-    real_dir = path / "real"
-    fake_dir = path / "fake"
-    real_count = len(list(real_dir.glob("*.jpg"))) + len(list(real_dir.glob("*.png"))) \
-                 if real_dir.exists() else 0
-    fake_count = len(list(fake_dir.glob("*.jpg"))) + len(list(fake_dir.glob("*.png"))) \
-                 if fake_dir.exists() else 0
-    total = real_count + fake_count
-
-    print(f"\nDataset at: {path}")
-    print(f"  Real images : {real_count:,}")
-    print(f"  Fake images : {fake_count:,}")
-    print(f"  Total       : {total:,}")
-
-    if total == 0:
-        print("  ERROR: No images found! Check the path.")
-        return
-
-    balance = real_count / total
-    print(f"  Balance     : {balance:.0%} real / {1-balance:.0%} fake")
-
-    if balance < 0.2 or balance > 0.8:
-        print("  WARNING: Dataset heavily imbalanced. class_weights will compensate.")
+    print(f"\nDataset verification at: {path}")
+    if (path / "train").exists():
+        overall_real = 0
+        overall_fake = 0
+        for split in ["train", "val", "test"]:
+            real_dir = path / split / "real"
+            fake_dir = path / split / "fake"
+            real_count = len(list(real_dir.glob("*.jpg"))) + len(list(real_dir.glob("*.png"))) if real_dir.exists() else 0
+            fake_count = len(list(fake_dir.glob("*.jpg"))) + len(list(fake_dir.glob("*.png"))) if fake_dir.exists() else 0
+            split_total = real_count + fake_count
+            overall_real += real_count
+            overall_fake += fake_count
+            print(f"  Split: {split}")
+            print(f"    Real images : {real_count:,}")
+            print(f"    Fake images : {fake_count:,}")
+            print(f"    Total       : {split_total:,}")
+            if split_total > 0:
+                balance = real_count / split_total
+                print(f"    Balance     : {balance:.1%} real / {1-balance:.1%} fake")
+        
+        total = overall_real + overall_fake
+        print(f"  Overall Total: {total:,}")
+        if total == 0:
+            print("  ERROR: No images found! Check the path.")
+            return
+        balance = overall_real / total
     else:
-        print("  OK: Reasonably balanced.")
+        real_dir = path / "real"
+        fake_dir = path / "fake"
+        real_count = len(list(real_dir.glob("*.jpg"))) + len(list(real_dir.glob("*.png"))) \
+                     if real_dir.exists() else 0
+        fake_count = len(list(fake_dir.glob("*.jpg"))) + len(list(fake_dir.glob("*.png"))) \
+                     if fake_dir.exists() else 0
+        total = real_count + fake_count
+        print(f"  Real images : {real_count:,}")
+        print(f"  Fake images : {fake_count:,}")
+        print(f"  Total       : {total:,}")
+        if total == 0:
+            print("  ERROR: No images found! Check the path.")
+            return
+        balance = real_count / total
+        print(f"  Balance     : {balance:.1%} real / {1-balance:.1%} fake")
 
     if total < 1000:
         print("  NOTE: Small dataset (<1000 images). Good for smoke testing.")
-        print("        For real training, aim for 10,000+ images per class.")
     elif total < 10000:
         print("  NOTE: Medium dataset. Expect ~80-85% accuracy.")
     else:
@@ -436,8 +477,8 @@ def verify_dataset(path: Path):
 
 def _print_stats(output: Path, copied: dict):
     print(f"\nDownload complete!")
-    print(f"  Real: {copied['real']:,} images → {output/'real'}")
-    print(f"  Fake: {copied['fake']:,} images → {output/'fake'}")
+    print(f"  Real: {copied['real']:,} images")
+    print(f"  Fake: {copied['fake']:,} images")
     verify_dataset(output)
 
 
