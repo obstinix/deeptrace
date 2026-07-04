@@ -499,7 +499,7 @@ def main():
 
     print(f"\n{'Epoch':>5} {'TrainLoss':>10} {'TrainAcc':>9} "
           f"{'ValLoss':>8} {'ValAcc':>7} {'LR':>10}")
-    print("─" * 58)
+    print("-" * 58)
 
     for epoch in range(start_epoch, cfg["training"]["epochs"] + 1):
         if freeze_epochs > 0:
@@ -542,7 +542,7 @@ def main():
                 "epoch": epoch,
                 "model_state_dict": state_dict,
             }, ckpt_path)
-            print(f"           ↑ new best ({best_val_acc:.4f}) → saved to {ckpt_path}")
+            print(f"           * new best ({best_val_acc:.4f}) -> saved to {ckpt_path}")
         else:
             patience_left -= 1
 
@@ -621,7 +621,7 @@ def main():
     except Exception as e:
         print(f"[calibration] auto-calibration failed: {e}")
 
-    print(f"\n✓ Training complete — best val acc: {best_val_acc:.4f} | test acc: {acc:.4f} | AUC: {auc:.4f}")
+    print(f"\n[train] Training complete - best val acc: {best_val_acc:.4f} | test acc: {acc:.4f} | AUC: {auc:.4f}")
     if acc < 0.90:
         print("[warn] test accuracy below 90% target — consider more epochs or data cleaning")
 
