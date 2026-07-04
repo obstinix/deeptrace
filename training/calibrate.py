@@ -152,7 +152,7 @@ def save_reliability_diagram(
     fig.tight_layout()
     fig.savefig(path, dpi=150)
     plt.close(fig)
-    print(f"[calibrate] reliability diagram → {path}")
+    print(f"[calibrate] reliability diagram -> {path}")
 
 
 # ---------------------------------------------------------------------------
@@ -165,7 +165,7 @@ def calibrate_arch(
     ckpt:    str,
     device:  torch.device,
 ) -> None:
-    print(f"\n{'─'*60}")
+    print(f"\n{'-'*60}")
     print(f"[calibrate] architecture: {arch}")
     print(f"[calibrate] checkpoint:   {ckpt}")
     print(f"[calibrate] val_dir:      {val_dir}")
@@ -202,7 +202,7 @@ def calibrate_arch(
     }
     with open(report_path, "w") as f:
         json.dump(report, f, indent=2)
-    print(f"[calibrate] report → {report_path}")
+    print(f"[calibrate] report -> {report_path}")
 
     # Save reliability diagram
     diagram_path = log_dir / "reliability_diagram.png"
@@ -215,7 +215,7 @@ def calibrate_arch(
         path      = str(diagram_path),
     )
 
-    print(f"\n[calibrate] ✓ {arch}")
+    print(f"\n[calibrate] [OK] {arch}")
     print(f"            T              = {scaler.temperature:.4f}")
     print(f"            ECE before     = {scaler._fit_meta.get('pre_ece',  0):.5f}")
     print(f"            ECE after      = {scaler._fit_meta.get('post_ece', 0):.5f}")

@@ -157,7 +157,7 @@ def main():
             print(f"[ensemble] SKIP {arch} — checkpoint not found: {ckpt}")
             continue
 
-        print(f"\n[ensemble] extracting probs: {arch} …")
+        print(f"\n[ensemble] extracting probs: {arch} ...")
         probs, labels = extract_member_probs(
             arch, val_dir, ckpt, temp_path, device
         )
@@ -251,9 +251,8 @@ def main():
     report_path = log_dir / "fit_report.json"
     with open(report_path, "w") as f:
         json.dump(report, f, indent=2)
-    print(f"\n[ensemble] fit report → {report_path}")
-
-    print(f"\n✓ Ensemble fitted ({args.strategy}) — "
+    print(f"\n[ensemble] fit report -> {report_path}")
+    print(f"\n[ensemble] Ensemble fitted ({args.strategy}) - "
           f"AUC {ens_auc:.4f}  Acc {ens_acc:.4f}")
 
 

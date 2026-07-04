@@ -567,10 +567,10 @@ def main():
     hist_path = Path(cfg["logging"]["log_dir"]) / "training_history.json"
     with open(hist_path, "w") as f:
         json.dump(history, f, indent=2)
-    print(f"[train] history → {hist_path}")
+    print(f"[train] history -> {hist_path}")
 
     # ── Final test set evaluation ──────────────────────────────
-    print("\n[eval] loading best checkpoint for test evaluation …")
+    print("\n[eval] loading best checkpoint for test evaluation ...")
     ckpt = torch.load(ckpt_path, map_location=device)
     if isinstance(ckpt, dict) and "model_state_dict" in ckpt:
         model.load_state_dict(ckpt["model_state_dict"], strict=False)
@@ -601,7 +601,7 @@ def main():
     }
     with open(cfg["logging"]["eval_report"], "w") as f:
         json.dump(eval_report, f, indent=2)
-    print(f"[eval] report → {cfg['logging']['eval_report']}")
+    print(f"[eval] report -> {cfg['logging']['eval_report']}")
 
     save_confusion_matrix(cm, cfg["logging"]["confusion_matrix"])
     save_roc_curve(fpr, tpr, auc, cfg["logging"]["roc_curve"])
@@ -609,7 +609,7 @@ def main():
     check_overfitting_warning(history)
 
     # ── Post-Training Temperature Calibration ──────────────────────────────
-    print("\n[calibration] starting post-training temperature calibration …")
+    print("\n[calibration] starting post-training temperature calibration ...")
     try:
         sys.path.insert(0, str(Path(__file__).parent))
         from calibrate import calibrate_arch
@@ -623,7 +623,7 @@ def main():
 
     print(f"\n[train] Training complete - best val acc: {best_val_acc:.4f} | test acc: {acc:.4f} | AUC: {auc:.4f}")
     if acc < 0.90:
-        print("[warn] test accuracy below 90% target — consider more epochs or data cleaning")
+        print("[warn] test accuracy below 90% target - consider more epochs or data cleaning")
 
 
 if __name__ == "__main__":
