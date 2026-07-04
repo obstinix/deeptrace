@@ -143,7 +143,7 @@ def build_model(cfg, device):
 
 
 # ──────────────────────────────────────────────────────────────
-# Scheduler: linear warmup → cosine decay
+# Scheduler: linear warmup -> cosine decay
 # ──────────────────────────────────────────────────────────────
 def build_scheduler(optimizer, cfg):
     warmup = cfg["training"].get("warmup_epochs", 3)
@@ -309,7 +309,7 @@ def save_loss_curves(history, arch):
     fig.tight_layout()
     fig.savefig(path, dpi=150)
     plt.close(fig)
-    print(f"[eval] loss curves → {path}")
+    print(f"[eval] loss curves -> {path}")
 
 
 def check_overfitting_warning(history):
