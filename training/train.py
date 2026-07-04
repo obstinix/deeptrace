@@ -53,6 +53,7 @@ def parse_args():
         default=None,
         help="Override architecture (resnet18 | efficientnet_b0). Default: read from config.",
     )
+    p.add_argument("--resume", action="store_true", help="Resume training from last.pth")
     return p.parse_args()
 
 
@@ -329,12 +330,28 @@ def main():
     patience_left  = cfg["training"].get("early_stopping_patience", 8)
     history        = []
     ckpt_path      = Path(cfg["logging"]["checkpoint_dir"]) / "best.pth"
+    last_path      = Path(cfg["logging"]["checkpoint_dir"]) / "last.pth"
+    start_epoch    = 1
+
+    if args.resume and last_path.exists():
+        print(f"[resume] Loading checkpoint state from {last_path}...")
+        checkpoint = torch.load(last_path, map_location=device)
+        start_epoch = checkpoint["epoch"] + 1
+        model.load_state_dict(checkpoint["model_state_dict"])
+        optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+        scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
+        if scaler is not None and checkpoint.get("scaler_state_dict") is not None:
+            scaler.load_state_dict(checkpoint["scaler_state_dict"])
+        best_val_acc = checkpoint["best_val_acc"]
+        patience_left = checkpoint["patience_left"]
+        history = checkpoint.get("history", [])
+        print(f"[resume] Resuming from epoch {start_epoch} | best_val_acc: {best_val_acc:.4f} | patience_left: {patience_left}")
 
     print(f"\n{'Epoch':>5} {'TrainLoss':>10} {'TrainAcc':>9} "
           f"{'ValLoss':>8} {'ValAcc':>7} {'LR':>10}")
     print("─" * 58)
 
-    for epoch in range(1, cfg["training"]["epochs"] + 1):
+    for epoch in range(start_epoch, cfg["training"]["epochs"] + 1):
         t0 = time.time()
         tr_loss, tr_acc = run_epoch(model, train_loader, criterion, optimizer,
                                     scaler, device, train=True, grad_accum_steps=accum, grad_clip=clip)
@@ -369,9 +386,23 @@ def main():
             print(f"           ↑ new best ({best_val_acc:.4f}) → saved to {ckpt_path}")
         else:
             patience_left -= 1
-            if patience_left == 0:
-                print(f"[train] early stopping at epoch {epoch}")
-                break
+
+        # Save last checkpoint for resume
+        scaler_state = scaler.state_dict() if scaler is not None else None
+        torch.save({
+            "epoch": epoch,
+            "model_state_dict": model.state_dict(),
+            "optimizer_state_dict": optimizer.state_dict(),
+            "scheduler_state_dict": scheduler.state_dict(),
+            "scaler_state_dict": scaler_state,
+            "best_val_acc": best_val_acc,
+            "patience_left": patience_left,
+            "history": history,
+        }, last_path)
+
+        if patience_left == 0:
+            print(f"[train] early stopping at epoch {epoch}")
+            break
 
     # Save training history
     hist_path = Path(cfg["logging"]["log_dir"]) / "training_history.json"
