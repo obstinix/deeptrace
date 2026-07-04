@@ -10,11 +10,11 @@ data:
   val_dir:   data/frames/val
   test_dir:  data/frames/test
   image_size: 224
-  num_workers: 0
+  num_workers: 8
 
 training:
-  epochs: 3
-  batch_size: 32              # reduce to 16 if OOM on 8 GB VRAM
+  epochs: 35
+  batch_size: 64              # reduce to 16 if OOM on 8 GB VRAM
   learning_rate: 1.0e-4       # conservative start for fine-tuning
   weight_decay: 1.0e-4
   scheduler: cosine           # cosine annealing over all epochs
@@ -22,6 +22,7 @@ training:
   early_stopping_patience: 3  # stop if val_acc doesn't improve for 8 epochs
   class_weights: auto         # compute from class frequencies at runtime
   mixed_precision: true       # torch.autocast — halves memory, ~30% faster
+  label_smoothing: 0.05
 
 augmentation:
   # Applied to TRAIN split only

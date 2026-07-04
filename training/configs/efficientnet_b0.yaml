@@ -10,11 +10,11 @@ data:
   val_dir:   data/frames/val
   test_dir:  data/frames/test
   image_size: 224
-  num_workers: 0
+  num_workers: 8
 
 training:
-  epochs: 3
-  batch_size: 32          # EfficientNet-B0 is smaller than ResNet-18; fits fine
+  epochs: 30
+  batch_size: 64          # EfficientNet-B0 is smaller than ResNet-18; fits fine
   learning_rate: 5.0e-5   # lower LR — EfficientNet is more sensitive
   weight_decay: 1.0e-4
   scheduler: cosine
@@ -22,6 +22,7 @@ training:
   early_stopping_patience: 3
   class_weights: auto
   mixed_precision: true
+  label_smoothing: 0.05
 
 augmentation:
   horizontal_flip: true

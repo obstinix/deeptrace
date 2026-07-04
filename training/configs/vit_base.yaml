@@ -9,7 +9,7 @@ data:
   root_dir: data/frames
   img_size: 224
   batch_size: 16
-  num_workers: 4
+  num_workers: 8
   val_ratio: 0.15
   test_ratio: 0.10
   seed: 42

@@ -4,16 +4,17 @@ model:
   pretrained: true
   num_classes: 2
   dropout: 0.1        # ViT internal MLP dropout — low; model already regularised
+  freeze_backbone_epochs: 3
 
 data:
   train_dir: data/frames/train
   val_dir:   data/frames/val
   test_dir:  data/frames/test
   image_size: 224     # patch16 expects 224×224 (14×14 grid of 16×16 patches)
-  num_workers: 0
+  num_workers: 8
 
 training:
-  epochs: 2          # Run 2 epochs for quick verification and metrics logging
+  epochs: 30          # Run 30 epochs for training
   batch_size: 16      # ViT-B/16 is 86M params; 16 is safe at 8–10 GB VRAM
   gradient_accumulation_steps: 2   # effective batch = 32
   learning_rate: 2.0e-5  # ViT pretrained weights are sensitive — very low LR
@@ -24,6 +25,7 @@ training:
   class_weights: auto
   mixed_precision: true
   gradient_clip: 1.0     # clip grad norm
+  label_smoothing: 0.05
 
 augmentation:
   # ViT benefits from stronger augmentation than CNNs

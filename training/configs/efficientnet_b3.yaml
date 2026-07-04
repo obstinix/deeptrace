@@ -8,8 +8,8 @@ model:
 data:
   root_dir: data/frames
   img_size: 300
-  batch_size: 32
-  num_workers: 4
+  batch_size: 16
+  num_workers: 8
   val_ratio: 0.15
   test_ratio: 0.10
   seed: 42
@@ -26,6 +26,7 @@ training:
   mixed_precision: true
   label_smoothing: 0.05
   use_class_weights: true
+  gradient_accumulation_steps: 2
 
 logging:
   use_wandb: false
