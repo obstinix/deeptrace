@@ -63,5 +63,22 @@ def main():
         else:
             print(f"\n[SUCCESS] Training for {arch} completed successfully.")
 
+    # Fit ensemble once all models have finished training
+    print(f"\n=========================================")
+    print(f"FITTING ENSEMBLE")
+    print(f"=========================================\n")
+    ensemble_cmd = [
+        sys.executable,
+        "training/fit_ensemble.py",
+        "--strategy", "learned",
+        "--save"
+    ]
+    ensemble_log = Path("logs") / "ensemble" / "fit.log"
+    ret = run_command(ensemble_cmd, ensemble_log)
+    if ret != 0:
+        print(f"[ERROR] Ensemble fitting failed with exit code {ret}!")
+    else:
+        print(f"[SUCCESS] Ensemble fitting completed successfully.")
+
 if __name__ == "__main__":
     main()
