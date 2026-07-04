@@ -254,7 +254,7 @@ def save_confusion_matrix(cm, path):
     ax.set_xticks([0, 1]); ax.set_yticks([0, 1])
     ax.set_xticklabels(["real", "fake"]); ax.set_yticklabels(["real", "fake"])
     ax.set_xlabel("Predicted"); ax.set_ylabel("True")
-    ax.set_title("Confusion matrix — test set")
+    ax.set_title("Confusion matrix - test set")
     for i in range(2):
         for j in range(2):
             ax.text(j, i, str(cm[i, j]), ha="center", va="center",
@@ -263,7 +263,7 @@ def save_confusion_matrix(cm, path):
     fig.tight_layout()
     fig.savefig(path, dpi=150)
     plt.close(fig)
-    print(f"[eval] confusion matrix → {path}")
+    print(f"[eval] confusion matrix -> {path}")
 
 
 def save_roc_curve(fpr, tpr, auc, path):
@@ -271,12 +271,12 @@ def save_roc_curve(fpr, tpr, auc, path):
     ax.plot(fpr, tpr, label=f"AUC = {auc:.4f}", lw=2)
     ax.plot([0, 1], [0, 1], "k--", lw=1)
     ax.set_xlabel("FPR"); ax.set_ylabel("TPR")
-    ax.set_title("ROC curve — test set")
+    ax.set_title("ROC curve - test set")
     ax.legend(loc="lower right")
     fig.tight_layout()
     fig.savefig(path, dpi=150)
     plt.close(fig)
-    print(f"[eval] ROC curve → {path}")
+    print(f"[eval] ROC curve -> {path}")
 
 
 def save_loss_curves(history, arch):
@@ -377,6 +377,28 @@ def normalize_config(cfg, arch):
         cfg["logging"]["confusion_matrix"] = f"logs/{arch}/confusion_matrix.png"
     if "roc_curve" not in cfg["logging"]:
         cfg["logging"]["roc_curve"] = f"logs/{arch}/roc_curve.png"
+
+    # Augmentation parameters default if missing
+    if "augmentation" not in cfg:
+        cfg["augmentation"] = {}
+    if "horizontal_flip" not in cfg["augmentation"]:
+        cfg["augmentation"]["horizontal_flip"] = True
+    if "random_crop" not in cfg["augmentation"]:
+        cfg["augmentation"]["random_crop"] = True
+    if "color_jitter" not in cfg["augmentation"]:
+        cfg["augmentation"]["color_jitter"] = {
+            "brightness": 0.3,
+            "contrast": 0.3,
+            "saturation": 0.2,
+            "hue": 0.05
+        }
+    if "random_erasing" not in cfg["augmentation"]:
+        cfg["augmentation"]["random_erasing"] = 0.3
+    if "normalize" not in cfg["augmentation"]:
+        cfg["augmentation"]["normalize"] = {
+            "mean": [0.485, 0.456, 0.406],
+            "std": [0.229, 0.224, 0.225]
+        }
 
 
 def set_backbone_frozen(model, arch, freeze=True):
