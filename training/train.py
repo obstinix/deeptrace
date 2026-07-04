@@ -111,12 +111,17 @@ def build_loaders(cfg):
     nw = cfg["data"]["num_workers"]
     bs = cfg["training"]["batch_size"]
 
+    kwargs = {}
+    if nw > 0:
+        kwargs["persistent_workers"] = True
+        kwargs["prefetch_factor"] = 4
+
     train_loader = DataLoader(train_ds, batch_size=bs, sampler=sampler,
-                              num_workers=nw, pin_memory=True)
+                              num_workers=nw, pin_memory=True, **kwargs)
     val_loader   = DataLoader(val_ds,   batch_size=bs, shuffle=False,
-                              num_workers=nw, pin_memory=True)
+                              num_workers=nw, pin_memory=True, **kwargs)
     test_loader  = DataLoader(test_ds,  batch_size=bs, shuffle=False,
-                              num_workers=nw, pin_memory=True)
+                              num_workers=nw, pin_memory=True, **kwargs)
 
     print(f"[data] train={len(train_ds)} | val={len(val_ds)} | test={len(test_ds)}")
     print(f"[data] class map: {train_ds.class_to_idx}")  # {'fake': 0, 'real': 1} or flipped
@@ -274,6 +279,58 @@ def save_roc_curve(fpr, tpr, auc, path):
     print(f"[eval] ROC curve → {path}")
 
 
+def save_loss_curves(history, arch):
+    out_dir = Path("training/logs") / arch
+    out_dir.mkdir(parents=True, exist_ok=True)
+    path = out_dir / "loss_curves.png"
+    
+    epochs = [h["epoch"] for h in history]
+    tr_loss = [h["train_loss"] for h in history]
+    vl_loss = [h["val_loss"] for h in history]
+    tr_acc = [h["train_acc"] for h in history]
+    vl_acc = [h["val_acc"] for h in history]
+    
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
+    
+    ax1.plot(epochs, tr_loss, label="Train Loss", marker='o')
+    ax1.plot(epochs, vl_loss, label="Val Loss", marker='o')
+    ax1.set_xlabel("Epoch")
+    ax1.set_ylabel("Loss")
+    ax1.set_title("Loss Curves")
+    ax1.legend()
+    
+    ax2.plot(epochs, tr_acc, label="Train Acc", marker='o')
+    ax2.plot(epochs, vl_acc, label="Val Acc", marker='o')
+    ax2.set_xlabel("Epoch")
+    ax2.set_ylabel("Accuracy")
+    ax2.set_title("Accuracy Curves")
+    ax2.legend()
+    
+    fig.tight_layout()
+    fig.savefig(path, dpi=150)
+    plt.close(fig)
+    print(f"[eval] loss curves → {path}")
+
+
+def check_overfitting_warning(history):
+    if len(history) < 5:
+        return
+    last_5 = history[-5:]
+    val_losses = [h["val_loss"] for h in last_5]
+    train_losses = [h["train_loss"] for h in last_5]
+    
+    val_loss_increased = val_losses[-1] > val_losses[0]
+    train_loss_decreased = (train_losses[0] - train_losses[-1]) > 0.01
+    
+    if val_loss_increased and train_loss_decreased:
+        print("\n" + "!" * 60)
+        print("WARNING: OVERFITTING DETECTED!")
+        print(f"Over the last 5 epochs, validation loss increased from {val_losses[0]:.4f} to {val_losses[-1]:.4f}")
+        print(f"while training loss decreased from {train_losses[0]:.4f} to {train_losses[-1]:.4f}.")
+        print("Consider stopping training or applying stronger regularization.")
+        print("!" * 60 + "\n")
+
+
 # ──────────────────────────────────────────────────────────────
 # Config normalization and progressive unfreezing helpers
 # ──────────────────────────────────────────────────────────────
@@ -396,7 +453,8 @@ def main():
         model.set_grad_checkpointing(enable=True)
 
     print(f"[model] {arch} | params: {count_parameters(model):,}")
-    criterion = nn.CrossEntropyLoss()
+    label_smoothing = cfg["training"].get("label_smoothing", 0.0)
+    criterion = nn.CrossEntropyLoss(label_smoothing=label_smoothing)
     optimizer = AdamW(model.parameters(),
                       lr=cfg["training"]["learning_rate"],
                       weight_decay=cfg["training"]["weight_decay"])
@@ -556,6 +614,8 @@ def main():
 
     save_confusion_matrix(cm, cfg["logging"]["confusion_matrix"])
     save_roc_curve(fpr, tpr, auc, cfg["logging"]["roc_curve"])
+    save_loss_curves(history, arch)
+    check_overfitting_warning(history)
 
     # ── Post-Training Temperature Calibration ──────────────────────────────
     print("\n[calibration] starting post-training temperature calibration …")
