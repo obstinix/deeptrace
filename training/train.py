@@ -334,6 +334,16 @@ def check_overfitting_warning(history):
 # ──────────────────────────────────────────────────────────────
 # Config normalization and progressive unfreezing helpers
 # ──────────────────────────────────────────────────────────────
+def scale_scheduler_lr(scheduler, factor):
+    if hasattr(scheduler, "base_lrs"):
+        scheduler.base_lrs = [lr * factor for lr in scheduler.base_lrs]
+    
+    # Handle composite/wrapped schedulers like SequentialLR
+    if hasattr(scheduler, "_schedulers"):
+        for sub_sched in scheduler._schedulers:
+            scale_scheduler_lr(sub_sched, factor)
+
+
 def normalize_config(cfg, arch):
     # Model architecture
     if "model" in cfg:
@@ -551,7 +561,7 @@ def main():
                 backbone_unfrozen_done = True
                 for param_group in optimizer.param_groups:
                     param_group['lr'] = param_group['lr'] * 0.1
-                scheduler.base_lrs = [lr * 0.1 for lr in scheduler.base_lrs]
+                scale_scheduler_lr(scheduler, 0.1)
 
         t0 = time.time()
         tr_loss, tr_acc = run_epoch(model, train_loader, criterion, optimizer,
