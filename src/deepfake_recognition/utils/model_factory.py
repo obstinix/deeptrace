@@ -16,14 +16,18 @@ except ImportError:
 SUPPORTED_ARCHITECTURES = {
     "resnet18":        "checkpoints/resnet18/best.pth",
     "efficientnet_b0": "checkpoints/efficientnet_b0/best.pth",
+    "efficientnet_b3": "checkpoints/efficientnet_b3/best.pth",
     "vit_b16":         "checkpoints/vit_b16/best.pth",
+    "vit_base":        "checkpoints/vit_base/best.pth",
 }
 
 # Input image sizes required per architecture
 IMAGE_SIZES = {
     "resnet18":        224,
     "efficientnet_b0": 224,
+    "efficientnet_b3": 300,
     "vit_b16":         224,
+    "vit_base":        224,
 }
 
 
@@ -33,6 +37,19 @@ def build_model(architecture: str, num_classes: int = 2, dropout: float = 0.5) -
     Call .load_state_dict() on the result to load a checkpoint.
     """
     arch = architecture.lower()
+
+    try:
+        from deepfake_recognition.models import get_model, MODEL_REGISTRY
+        if arch in MODEL_REGISTRY:
+            return get_model({
+                "name": arch,
+                "pretrained": True,
+                "num_classes": num_classes,
+                "dropout": dropout,
+                "freeze_backbone_epochs": 0
+            })
+    except Exception as e:
+        print(f"[model_factory] get_model import failed, fallback to native build: {e}")
 
     if arch == "resnet18":
         try:
@@ -97,7 +114,7 @@ def get_gradcam_target_layer(model: nn.Module, architecture: str):
     """
     arch = architecture.lower()
 
-    if arch == "vit_b16":
+    if "vit" in arch:
         # ViT uses AttentionRollout, not Grad-CAM.
         # Returning None signals the API to use the attention path.
         return None
@@ -107,8 +124,10 @@ def get_gradcam_target_layer(model: nn.Module, architecture: str):
             return model.features[-1][-1]        # DeepfakeResNet18 features
         return model.layer4[-1]                  # BasicBlock at end of layer4
 
-    if arch == "efficientnet_b0":
-        if _TIMM_AVAILABLE and hasattr(model, "blocks"):
+    if "efficientnet" in arch:
+        if hasattr(model, "backbone") and hasattr(model.backbone, "blocks"):
+            return model.backbone.blocks[-1][-1]
+        elif _TIMM_AVAILABLE and hasattr(model, "blocks"):
             return model.blocks[-1][-1]          # last MBConv block
         else:
             return model.features[-1]            # torchvision: last Conv2dNormActivation
@@ -119,7 +138,7 @@ def get_gradcam_target_layer(model: nn.Module, architecture: str):
 def supports_gradcam(architecture: str) -> bool:
     """Return True if this architecture uses Grad-CAM for explainability.
     ViT uses AttentionRollout instead."""
-    return architecture.lower() != "vit_b16"
+    return "vit" not in architecture.lower()
 
 
 def count_parameters(model: nn.Module) -> int:
