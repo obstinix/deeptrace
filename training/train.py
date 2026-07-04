@@ -443,12 +443,6 @@ def main():
         )
     model = model.to(device)
 
-    if arch == "vit_b16":
-        # Freeze all layers except block 11, norm, and head to support small checkpoint (<30MB)
-        for name, param in model.named_parameters():
-            if not ("blocks.11." in name or "norm." in name or "head." in name):
-                param.requires_grad = False
-
     if hasattr(model, "set_grad_checkpointing"):
         model.set_grad_checkpointing(enable=True)
 
@@ -543,9 +537,6 @@ def main():
             patience_left = cfg["training"]["early_stopping_patience"]
             # Save dict with model_state_dict to match Predictor.from_checkpoint
             state_dict = model.state_dict()
-            if arch == "vit_b16":
-                # Save only blocks.11, norm, and head weights to keep checkpoint size < 30MB
-                state_dict = {k: v for k, v in state_dict.items() if "blocks.11." in k or "norm." in k or "head." in k}
 
             torch.save({
                 "epoch": epoch,
