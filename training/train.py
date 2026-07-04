@@ -275,11 +275,79 @@ def save_roc_curve(fpr, tpr, auc, path):
 
 
 # ──────────────────────────────────────────────────────────────
+# Config normalization and progressive unfreezing helpers
+# ──────────────────────────────────────────────────────────────
+def normalize_config(cfg):
+    # Model architecture
+    if "model" in cfg:
+        if "architecture" not in cfg["model"] and "name" in cfg["model"]:
+            cfg["model"]["architecture"] = cfg["model"]["name"]
+    
+    # Data directories
+    if "data" in cfg:
+        if "train_dir" not in cfg["data"] and "root_dir" in cfg["data"]:
+            root = cfg["data"]["root_dir"]
+            cfg["data"]["train_dir"] = str(Path(root) / "train")
+            cfg["data"]["val_dir"]   = str(Path(root) / "val")
+            cfg["data"]["test_dir"]  = str(Path(root) / "test")
+        
+        # Image size
+        if "image_size" not in cfg["data"] and "img_size" in cfg["data"]:
+            cfg["data"]["image_size"] = cfg["data"]["img_size"]
+            
+        # num_workers
+        if "num_workers" not in cfg["data"]:
+            cfg["data"]["num_workers"] = 0
+            
+    # Training parameters
+    if "training" in cfg:
+        # Batch size
+        if "batch_size" not in cfg["training"] and "batch_size" in cfg["data"]:
+            cfg["training"]["batch_size"] = cfg["data"]["batch_size"]
+            
+        # Learning rate
+        if "learning_rate" not in cfg["training"] and "lr" in cfg["training"]:
+            cfg["training"]["learning_rate"] = cfg["training"]["lr"]
+
+
+def set_backbone_frozen(model, arch, freeze=True):
+    if not freeze:
+        if hasattr(model, "unfreeze"):
+            model.unfreeze()
+            print("[train] Backbone unfreezing successful (using model.unfreeze())")
+            return
+    else:
+        if hasattr(model, "_freeze"):
+            model._freeze()
+            print("[train] Backbone freezing successful (using model._freeze())")
+            return
+            
+    # Fallback/General method:
+    arch = arch.lower()
+    head_names = []
+    if "resnet" in arch:
+        head_names = ["head", "fc"]
+    elif "efficientnet" in arch:
+        head_names = ["head", "classifier"]
+    elif "vit" in arch:
+        head_names = ["head"]
+        
+    for name, param in model.named_parameters():
+        is_head = any(hn in name for hn in head_names)
+        if not is_head:
+            param.requires_grad = not freeze
+    print(f"[train] Backbone {'frozen' if freeze else 'unfrozen'} via parameter names search.")
+
+
+# ──────────────────────────────────────────────────────────────
 # Main
 # ──────────────────────────────────────────────────────────────
 def main():
     args   = parse_args()
     cfg    = load_config(args.config)
+    
+    # Normalise config key structure
+    normalize_config(cfg)
     
     # Determine architecture — CLI flag overrides config
     arch = args.arch or cfg["model"]["architecture"]
@@ -297,11 +365,26 @@ def main():
 
     train_loader, val_loader, test_loader, class_to_idx = build_loaders(cfg)
 
-    model = factory_build(
-        architecture=arch,
-        num_classes=cfg["model"]["num_classes"],
-        dropout=cfg["model"].get("dropout", 0.5),
-    ).to(device)
+    # Build model using custom get_model registry if available, falling back to factory_build
+    try:
+        from deepfake_recognition.models import get_model, MODEL_REGISTRY
+        if arch in MODEL_REGISTRY:
+            cfg["model"]["name"] = arch
+            model = get_model(cfg["model"])
+        else:
+            model = factory_build(
+                architecture=arch,
+                num_classes=cfg["model"]["num_classes"],
+                dropout=cfg["model"].get("dropout", 0.5),
+            )
+    except Exception as e:
+        print(f"[init] Fallback to model factory due to: {e}")
+        model = factory_build(
+            architecture=arch,
+            num_classes=cfg["model"]["num_classes"],
+            dropout=cfg["model"].get("dropout", 0.5),
+        )
+    model = model.to(device)
 
     if arch == "vit_b16":
         # Freeze all layers except block 11, norm, and head to support small checkpoint (<30MB)
@@ -333,6 +416,13 @@ def main():
     last_path      = Path(cfg["logging"]["checkpoint_dir"]) / "last.pth"
     start_epoch    = 1
 
+    freeze_epochs = cfg["model"].get("freeze_backbone_epochs", 0)
+    backbone_unfrozen_done = False
+
+    if freeze_epochs > 0:
+        print(f"[init] Configuring progressive unfreezing: backbone frozen for first {freeze_epochs} epochs")
+        set_backbone_frozen(model, arch, freeze=True)
+
     if args.resume and last_path.exists():
         print(f"[resume] Loading checkpoint state from {last_path}...")
         checkpoint = torch.load(last_path, map_location=device)
@@ -345,6 +435,14 @@ def main():
         best_val_acc = checkpoint["best_val_acc"]
         patience_left = checkpoint["patience_left"]
         history = checkpoint.get("history", [])
+        
+        # Resume progressive unfreezing state
+        if start_epoch > freeze_epochs > 0:
+            print("[resume] Resumed epoch is after freeze window. Unfreezing backbone and lowering base LRs.")
+            set_backbone_frozen(model, arch, freeze=False)
+            backbone_unfrozen_done = True
+            scheduler.base_lrs = [lr * 0.1 for lr in scheduler.base_lrs]
+            
         print(f"[resume] Resuming from epoch {start_epoch} | best_val_acc: {best_val_acc:.4f} | patience_left: {patience_left}")
 
     print(f"\n{'Epoch':>5} {'TrainLoss':>10} {'TrainAcc':>9} "
@@ -352,6 +450,18 @@ def main():
     print("─" * 58)
 
     for epoch in range(start_epoch, cfg["training"]["epochs"] + 1):
+        if freeze_epochs > 0:
+            if epoch <= freeze_epochs:
+                print(f"[train] Epoch {epoch}: Backbone is FROZEN (training head only)")
+                set_backbone_frozen(model, arch, freeze=True)
+            elif not backbone_unfrozen_done:
+                print(f"[train] Epoch {epoch}: Unfreezing backbone and lowering learning rate by 10x")
+                set_backbone_frozen(model, arch, freeze=False)
+                backbone_unfrozen_done = True
+                for param_group in optimizer.param_groups:
+                    param_group['lr'] = param_group['lr'] * 0.1
+                scheduler.base_lrs = [lr * 0.1 for lr in scheduler.base_lrs]
+
         t0 = time.time()
         tr_loss, tr_acc = run_epoch(model, train_loader, criterion, optimizer,
                                     scaler, device, train=True, grad_accum_steps=accum, grad_clip=clip)
