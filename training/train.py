@@ -334,7 +334,7 @@ def check_overfitting_warning(history):
 # ──────────────────────────────────────────────────────────────
 # Config normalization and progressive unfreezing helpers
 # ──────────────────────────────────────────────────────────────
-def normalize_config(cfg):
+def normalize_config(cfg, arch):
     # Model architecture
     if "model" in cfg:
         if "architecture" not in cfg["model"] and "name" in cfg["model"]:
@@ -365,6 +365,18 @@ def normalize_config(cfg):
         # Learning rate
         if "learning_rate" not in cfg["training"] and "lr" in cfg["training"]:
             cfg["training"]["learning_rate"] = cfg["training"]["lr"]
+
+    # Logging parameters
+    if "logging" not in cfg:
+        cfg["logging"] = {}
+    if "log_dir" not in cfg["logging"]:
+        cfg["logging"]["log_dir"] = f"logs/{arch}"
+    if "eval_report" not in cfg["logging"]:
+        cfg["logging"]["eval_report"] = f"logs/{arch}/eval_report.json"
+    if "confusion_matrix" not in cfg["logging"]:
+        cfg["logging"]["confusion_matrix"] = f"logs/{arch}/confusion_matrix.png"
+    if "roc_curve" not in cfg["logging"]:
+        cfg["logging"]["roc_curve"] = f"logs/{arch}/roc_curve.png"
 
 
 def set_backbone_frozen(model, arch, freeze=True):
@@ -403,11 +415,16 @@ def main():
     args   = parse_args()
     cfg    = load_config(args.config)
     
-    # Normalise config key structure
-    normalize_config(cfg)
-    
     # Determine architecture — CLI flag overrides config
-    arch = args.arch or cfg["model"]["architecture"]
+    arch = args.arch
+    if not arch and "model" in cfg:
+        arch = cfg["model"].get("architecture") or cfg["model"].get("name")
+    if not arch:
+        arch = "resnet18"  # fallback default
+    
+    # Normalise config key structure
+    normalize_config(cfg, arch)
+    
     cfg["model"]["architecture"] = arch   # normalise for logging
 
     # Enable MPS for acceleration on Apple Silicon/Mac GPU (fallback to CPU for ViT to avoid MPS freezes)
