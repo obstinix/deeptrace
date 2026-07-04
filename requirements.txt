@@ -1,6 +1,8 @@
 # Requires Python 3.11+
-torch==2.5.1
-torchvision==0.20.1
+# CUDA-12.8/Blackwell builds (install via: pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128)
+--extra-index-url https://download.pytorch.org/whl/cu128
+torch==2.11.0+cu128
+torchvision==0.26.0+cu128
 opencv-python==4.10.0.84
 scikit-learn==1.3.0
 numpy==1.26.4
