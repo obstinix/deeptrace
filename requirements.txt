@@ -21,3 +21,4 @@ matplotlib==3.11.0
 aiosqlite==0.22.1
 bcrypt==5.0.0
 redis==8.0.1
+celery==5.6.3
