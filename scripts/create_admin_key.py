@@ -43,13 +43,13 @@ async def main():
         notes=args.notes,
     )
 
-    print("\n" + "─" * 60)
+    print("\n" + "-" * 60)
     print(f"  Name:   {result['name']}")
     print(f"  Tier:   {result['tier']}")
     print(f"  Key ID: {result['id']}")
-    print(f"\n  ⚠  RAW KEY (save this now — not stored):")
+    print(f"\n  [WARNING] RAW KEY (save this now - not stored):")
     print(f"\n  {result['raw_key']}\n")
-    print("─" * 60)
+    print("-" * 60)
     print(f"\nUsage:\n  curl -H 'X-API-Key: {result['raw_key']}' http://localhost:8000/api/health")
 
 
