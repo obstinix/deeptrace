@@ -187,7 +187,7 @@ class TemperatureScaler:
         if verbose:
             print(f"[calibration] temperature      T = {self.temperature:.4f}")
             print(f"[calibration] post-calibration ECE = {post_ece:.5f}  "
-                  f"(Δ = {post_ece - pre_ece:+.5f})")
+                  f"(diff = {post_ece - pre_ece:+.5f})")
             print(f"[calibration] fit time: {elapsed:.0f}ms")
 
         self._fit_meta = {
