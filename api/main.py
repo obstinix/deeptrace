@@ -14,15 +14,16 @@ from typing import Optional, Dict, List, Literal, Tuple
 from fastapi import FastAPI, HTTPException, File, UploadFile, Query, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
-from slowapi import _rate_limit_exceeded_handler
+from slowapi import _rate_limit_exceeded_handler, Limiter
 from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from api.db import init_db, get_all
 from api.middleware import track_metrics
-from api.routes.predict import limiter
+
+limiter = Limiter(key_func=get_remote_address)
 
 # ── API auth imports ─────────────────────────────────────────────────────────
 from api.auth.keys       import init_db as _init_key_db, create_key, list_keys, revoke_key, get_usage
@@ -1756,7 +1757,6 @@ async def get_key_usage(
 
 # ── Static / Frontend Serving ──────────────────────────────────────────────────
 
-app.mount("/static", StaticFiles(directory="stitch_veritas_ai_detection_platform"), name="static")
 
 @app.get("/", response_class=FileResponse)
 @app.get("/index.html", response_class=FileResponse)
