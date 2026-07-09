@@ -25,7 +25,7 @@ from typing import Any, Dict, List, Optional
 
 import redis
 
-REDIS_URL       = os.environ.get("CELERY_BROKER_URL", "redis://localhost:6379/0")
+REDIS_URL       = (os.environ.get("CELERY_BROKER_URL") or "").strip() or "redis://localhost:6379/0"
 JOB_TTL_SECONDS = int(os.environ.get("DEEPTRACE_JOB_TTL", "3600"))
 
 _KEY_META     = "deeptrace:job:{job_id}:meta"

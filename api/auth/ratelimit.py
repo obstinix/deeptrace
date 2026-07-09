@@ -28,7 +28,7 @@ from typing import Optional, Tuple
 
 import redis
 
-REDIS_URL = os.environ.get("CELERY_BROKER_URL", "redis://localhost:6379/0")
+REDIS_URL = (os.environ.get("CELERY_BROKER_URL") or "").strip() or "redis://localhost:6379/0"
 
 # Use DB 2 for auth/rate-limit state (0=broker, 1=celery results)
 _AUTH_REDIS_URL = REDIS_URL.rsplit("/", 1)[0] + "/2"

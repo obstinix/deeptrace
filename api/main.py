@@ -1633,7 +1633,7 @@ async def health(model: str = Query(default=DEFAULT_MODEL)):
     try:
         import redis as _redis_lib
         _r = _redis_lib.Redis.from_url(
-            os.environ.get("CELERY_BROKER_URL", "redis://localhost:6379/0")
+            (os.environ.get("CELERY_BROKER_URL") or "").strip() or "redis://localhost:6379/0"
         )
         _r.ping()
         redis_connected = True
