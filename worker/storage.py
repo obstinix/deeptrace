@@ -37,6 +37,9 @@ def _sanitize_redis_url(val: str) -> str:
     val = val.split()[0]
     if "rediss://" not in val and ("--tls" in raw_val or "upstash.io" in val):
         val = val.replace("redis://", "rediss://")
+    if val.startswith("rediss://") and "ssl_cert_reqs=" not in val:
+        separator = "&" if "?" in val else "?"
+        val = f"{val}{separator}ssl_cert_reqs=none"
     return val.strip()
 
 REDIS_URL       = _sanitize_redis_url(os.environ.get("CELERY_BROKER_URL")) or "redis://localhost:6379/0"

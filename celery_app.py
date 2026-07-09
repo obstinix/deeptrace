@@ -18,6 +18,9 @@ def sanitize_redis_url(val: str) -> str:
     val = val.split()[0]
     if "rediss://" not in val and ("--tls" in raw_val or "upstash.io" in val):
         val = val.replace("redis://", "rediss://")
+    if val.startswith("rediss://") and "ssl_cert_reqs=" not in val:
+        separator = "&" if "?" in val else "?"
+        val = f"{val}{separator}ssl_cert_reqs=none"
     return val.strip()
 
 # Clean up raw dashboard inputs (e.g. if user pasted a full command like redis-cli -u redis://...)
