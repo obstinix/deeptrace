@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: deeptrace-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    envVars:
+      - key: CELERY_BROKER_URL
+        sync: false
+      - key: CELERY_RESULT_BACKEND
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: METRICS_DB_PATH
+        value: /home/user/data/metrics.db
+      - key: DEEPTRACE_DB_PATH
+        value: /home/user/data/deeptrace.db
+      - key: DEEPTRACE_UPLOAD_DIR
+        value: /home/user/data/jobs
+      - key: PORT
+        value: "8000"
