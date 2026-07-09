@@ -8,8 +8,8 @@ Imported by both the FastAPI app (to submit tasks) and the worker
 import os
 from celery import Celery
 
-BROKER_URL  = os.environ.get("CELERY_BROKER_URL",  "redis://localhost:6379/0")
-RESULT_URL  = os.environ.get("CELERY_RESULT_BACKEND", "redis://localhost:6379/1")
+BROKER_URL  = (os.environ.get("CELERY_BROKER_URL") or "").strip() or "redis://localhost:6379/0"
+RESULT_URL  = (os.environ.get("CELERY_RESULT_BACKEND") or "").strip() or "redis://localhost:6379/1"
 
 celery_app = Celery(
     "deeptrace",
