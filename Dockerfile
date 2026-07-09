@@ -11,7 +11,10 @@ COPY celery_app.py celery_app.py
 COPY worker/ worker/
 COPY checkpoints/ checkpoints/
 ENV PYTHONPATH=/app/src
+COPY start-deploy.sh start-deploy.sh
+RUN chmod +x start-deploy.sh
 EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s \
     CMD curl -f http://localhost:8000/api/health || exit 1
-CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
+CMD ["./start-deploy.sh"]
+
