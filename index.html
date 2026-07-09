@@ -547,8 +547,93 @@
           gap: 16px;
           align-items: start;
         }
-        @media (max-width: 700px) {
-          .group-workspace { grid-template-columns: 1fr; }
+        /* ── Responsive breakpoints & Mobile enhancements ────────────────── */
+        @media (max-width: 768px) {
+          nav {
+            border-radius: 16px !important;
+            margin-top: 8px !important;
+            margin-left: 8px !important;
+            margin-right: 8px !important;
+            padding: 8px 16px !important;
+            flex-wrap: wrap !important;
+            gap: 4px !important;
+          }
+          nav > div:nth-child(2) {
+            display: flex !important;
+            overflow-x: auto !important;
+            width: 100% !important;
+            order: 3 !important;
+            gap: 4px !important;
+            margin-top: 4px !important;
+            padding-bottom: 2px !important;
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+          }
+          nav > div:nth-child(2)::-webkit-scrollbar {
+            display: none;
+          }
+          nav > div:nth-child(2) a {
+            white-space: nowrap !important;
+            font-size: 13px !important;
+            padding: 6px 12px !important;
+          }
+          main {
+            padding-top: 180px !important;
+          }
+          .group-workspace {
+            grid-template-columns: 1fr;
+          }
+          .compare-grid {
+            grid-template-columns: repeat(2, 1fr);
+          }
+          .face-cards-grid {
+            grid-template-columns: repeat(2, 1fr);
+          }
+          .explain-compare-grid {
+            grid-template-columns: repeat(2, 1fr);
+          }
+        }
+
+        @media (max-width: 480px) {
+          .compare-grid {
+            grid-template-columns: 1fr;
+          }
+          .face-cards-grid {
+            grid-template-columns: 1fr;
+          }
+          .explain-compare-grid {
+            grid-template-columns: 1fr;
+          }
+          /* Touch targets: model-pills, method-pills, and buttons should be at least 44px high */
+          .model-pill, .method-pill {
+            padding: 12px 16px !important;
+            font-size: 13px !important;
+          }
+          button, .btn, .control-btn, .action-btn, .tactile-button {
+            min-height: 44px;
+          }
+          .control-select, .control-input {
+            padding: 10px 12px !important;
+            font-size: 14px !important;
+            min-height: 44px;
+          }
+          /* Dropzone adjustment for smaller viewports */
+          #dropzone {
+            height: 220px !important;
+          }
+          /* Heading resizing for tiny screens */
+          h1 {
+            font-size: 32px !important;
+            line-height: 1.1 !important;
+          }
+          h2 {
+            font-size: 24px !important;
+          }
+          /* Prevent horizontal overflow on compare and annotated containers */
+          .compare-results, #dt-annotated-container, #gradcam-container {
+            max-width: 100% !important;
+            overflow-x: hidden !important;
+          }
         }
 
         /* ── Canvas + hitboxes ───────────────────────────────────────── */
