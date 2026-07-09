@@ -6,6 +6,11 @@ Imported by both the FastAPI app (to submit tasks) and the worker
 (to execute them). Must be importable from both contexts.
 """
 import os
+# Prevent Celery auto-discovery from overriding defaults with empty strings
+for key in ["CELERY_BROKER_URL", "CELERY_RESULT_BACKEND"]:
+    if key in os.environ and not os.environ[key].strip():
+        del os.environ[key]
+
 from celery import Celery
 
 BROKER_URL  = (os.environ.get("CELERY_BROKER_URL") or "").strip() or "redis://localhost:6379/0"
