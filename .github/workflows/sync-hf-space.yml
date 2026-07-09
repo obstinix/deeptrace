@@ -29,7 +29,11 @@ jobs:
           python - <<'EOF'
           import os
           from huggingface_hub import HfApi
-          api = HfApi(token=os.environ["HF_TOKEN"])
+          token = os.environ.get("HF_TOKEN", "").strip()
+          if not token:
+              print("::error::HF_TOKEN GitHub Secret is not set. Please add your Hugging Face Access Token as a Repository Secret named HF_TOKEN in your GitHub repository settings.")
+              exit(1)
+          api = HfApi(token=token)
           api.upload_folder(
               repo_id="obstinix/deeptrace-api",
               repo_type="space",
