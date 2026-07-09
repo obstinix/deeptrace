@@ -1,0 +1,36 @@
+services:
+  - type: redis
+    name: deeptrace-redis
+    plan: free
+    ipAllowList: []
+
+  - type: web
+    name: deeptrace-backend
+    env: docker
+    plan: starter
+    healthCheckPath: /api/health
+    disk:
+      name: deeptrace-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: CELERY_BROKER_URL
+        fromService:
+          type: redis
+          name: deeptrace-redis
+          property: connectionString
+      - key: CELERY_RESULT_BACKEND
+        fromService:
+          type: redis
+          name: deeptrace-redis
+          property: connectionString
+      - key: METRICS_DB_PATH
+        value: /data/metrics.db
+      - key: DEEPTRACE_DB_PATH
+        value: /data/deeptrace.db
+      - key: DEEPTRACE_UPLOAD_DIR
+        value: /data/jobs
+      - key: CORS_ORIGINS
+        value: https://deeptrace-frontend.vercel.app
+      - key: PYTHONPATH
+        value: /app
