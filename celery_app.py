@@ -35,16 +35,12 @@ for key in ["CELERY_BROKER_URL", "CELERY_RESULT_BACKEND"]:
 # Prevent Celery auto-discovery from overriding defaults with empty strings
 for key in ["CELERY_BROKER_URL", "CELERY_RESULT_BACKEND"]:
     if key in os.environ and not os.environ[key].strip():
-        print(f"DEBUG: Deleting empty/whitespace env var {key}", flush=True)
         del os.environ[key]
 
 from celery import Celery
 
 BROKER_URL  = (os.environ.get("CELERY_BROKER_URL") or "").strip() or "redis://localhost:6379/0"
 RESULT_URL  = (os.environ.get("CELERY_RESULT_BACKEND") or "").strip() or "redis://localhost:6379/1"
-
-print(f"DEBUG: BROKER_URL={BROKER_URL!r}", flush=True)
-print(f"DEBUG: RESULT_URL={RESULT_URL!r}", flush=True)
 
 celery_app = Celery(
     "deeptrace",

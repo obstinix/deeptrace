@@ -20,3 +20,5 @@ services:
         value: /home/user/data/jobs
       - key: PORT
         value: "8000"
+      - key: MALLOC_ARENA_MAX
+        value: "2"
