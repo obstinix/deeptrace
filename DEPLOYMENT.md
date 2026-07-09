@@ -1,11 +1,11 @@
-# DeepTrace Deployment Architecture
+# DeepTrace Deployment Architecture (v2)
 
-This document outlines the deployment setup for DeepTrace, taking it from a local docker-compose environment to a live production deploy.
+This document outlines the deployment setup for DeepTrace, taking it from a local docker-compose environment to a production deploy using Vercel (frontend), Hugging Face Spaces (backend), and Upstash Redis (job queue/broker).
 
 ## Live Endpoints
 
 - **Frontend (Vercel)**: `https://deeptrace-frontend.vercel.app` (Placeholder - connected to GitHub repo `obstinix/deeptrace`)
-- **Backend (Render)**: `https://deeptrace-backend.onrender.com`
+- **Backend (Hugging Face Space)**: `https://obstinix-deeptrace-api.hf.space`
 
 ---
 
@@ -15,33 +15,34 @@ DeepTrace is split into two primary components to balance cost, performance, and
 
 1. **Frontend (Vercel)**
    - Hosted as a static site directly from the repo root (`index.html` and `webhooks.html`).
-   - Uses `vercel.json` rewrites to proxy all API traffic (`/api/*`) directly to the Render backend service over HTTPS.
+   - Uses `vercel.json` rewrites to proxy all API traffic (`/api/*`) directly to the Hugging Face Space endpoint over HTTPS.
    - Requires zero client-side configuration of API endpoints, avoiding hardcoded backend URLs.
 
-2. **Backend (Render)**
-   - Deployed as a single unified **Docker Web Service** running both the **FastAPI application** and the **Celery worker** concurrently.
-   - Backed by Render's managed **Redis (Key-Value)** instance for message brokering, rate-limiting, and result backend persistence.
-   - Utilizes a persistent disk mounted at `/data` to store SQLite databases and uploaded media.
+2. **Backend (Hugging Face Space)**
+   - Deployed as a single unified **Docker SDK Space** running both the **FastAPI application** and the **Celery worker** concurrently.
+   - Runs as a non-root user (UID 1000) under the `/app` workspace directory for security and Hugging Face compatibility.
+   - Backed by **Upstash Redis** (free tier) for Celery task queuing (broker) and result backend persistence.
+   - Utilizes the writable `/home/user/data` home subdirectory for ephemeral SQLite databases and media storage.
 
 ```mermaid
 graph TD
     Client[Browser Client]
     Vercel[Vercel Static Hosting]
-    Render[Render Web Service container]
+    HF[Hugging Face Space container]
     API[FastAPI API Server]
     Worker[Celery worker]
-    Redis[(Render Redis KV)]
-    Disk[(Persistent Disk /data)]
+    Upstash[(Upstash Redis)]
+    Disk[(Writable Home Directory /home/user/data)]
 
     Client -->|Loads Static Assets| Vercel
     Client -->|Relative /api/predict| Vercel
-    Vercel -->|Proxied Rewrite| Render
-    Render --> API
+    Vercel -->|Proxied Rewrite| HF
+    HF --> API
     API -->|Saves video uploads| Disk
-    API -->|Submit jobs / check state| Redis
-    Redis -->|Dispatches tasks| Worker
+    API -->|Submit jobs / check state| Upstash
+    Upstash -->|Dispatches tasks| Worker
     Worker -->|Inference on frames| Disk
-    Worker -->|Writes results| Redis
+    Worker -->|Writes results| Upstash
 ```
 
 ---
@@ -49,38 +50,44 @@ graph TD
 ## Architectural Decisions & Rationales
 
 ### Single Container Co-location (API + Worker)
-- **Problem**: Async video jobs require the API server to receive video files, store them, and pass them to the Celery worker. In standard scaled environments, this requires a centralized object storage (like AWS S3 or Cloudflare R2) and a database.
-- **Solution**: To keep the existing local video job pipeline working without rewriting the backend storage adapter, we run both processes inside the same container sharing a Render persistent disk mounted at `/data`. Video uploads are saved to `/data/jobs` where the local worker process reads them directly.
+- **Problem**: Async video jobs require the API server to receive video files, store them, and pass them to the Celery worker. In standard scaled environments, this requires a centralized object storage (like AWS S3 or Cloudflare R2).
+- **Solution**: To keep the existing local video job pipeline working without rewriting the backend storage adapter, we run both processes inside the same container sharing a local folder (`/home/user/data/jobs`). Video uploads are saved here where the local worker process reads them directly.
 - **Worker Configuration**: Memory usage is optimized by running Uvicorn with `--workers 1` (saving RAM from redundant model registries) and running Celery with `--concurrency=2` on CPU.
 
-### Future Scale/Upgrade Path
-- If API traffic or video processing load requires scaling the API and worker separately:
-  1. Migrate the video storage layer to an S3/R2-compatible Object Storage service.
-  2. Modify `worker/tasks.py` and `api/main.py` to upload and fetch files via pre-signed URLs instead of reading from local `/data/jobs` paths.
-  3. Decouple the single Render Blueprint into two services: an API Web Service and a separate Celery Worker Private Service.
+### Writable Directory for Non-Root User
+- Hugging Face Spaces run as a non-root user (UID 1000). To avoid permission errors when writing SQLite databases or caching model checkpoints, writable paths (`METRICS_DB_PATH`, `DEEPTRACE_DB_PATH`, `DEEPTRACE_UPLOAD_DIR`) must reside under `/home/user/data`.
+- This folder is explicitly created and chowned during the Docker build stage.
+
+### Ephemeral Storage & Cold Starts
+- **Ephemeral Storage**: SQLite databases reset on space restarts/rebuilds. This is an accepted tradeoff for a portfolio-scale deployment.
+- **Cold Start**: Hugging Face free spaces enter sleep mode after inactivity. The first request after a sleep period will experience a cold start while loading PyTorch, MediaPipe, Librosa, SHAP, and checkpoints.
+
+### Sync Pipeline
+- A GitHub Action (`.github/workflows/sync-hf-space.yml`) automates deploying to Hugging Face.
+- It prepares a deployment directory with a Space-specific `README.md` containing the required Docker SDK metadata and uploads only the backend-relevant code.
+- Checking out the repository with Git LFS pulls the checkpoints cleanly, and the Hugging Face API uploads them automatically without remote Git size restriction limits.
 
 ---
 
 ## Environment Variables Configuration
 
-### Render Web Service (`deeptrace-backend`)
+### Hugging Face Space Repository Secrets
 
-The following environment variables are set in the Render Dashboard (or via `render.yaml`):
+Configure the following secrets in the Hugging Face Space Settings page:
 
-| Variable | Target Value / Reference | Purpose |
-|----------|--------------------------|---------|
-| `CELERY_BROKER_URL` | `fromService: type: redis -> connectionString` | Redis broker connection URL |
-| `CELERY_RESULT_BACKEND` | `fromService: type: redis -> connectionString` | Redis task state storage URL |
-| `METRICS_DB_PATH` | `/data/metrics.db` | Path to persistent SQLite metrics DB |
-| `DEEPTRACE_DB_PATH` | `/data/deeptrace.db` | Path to persistent SQLite API Key DB |
-| `DEEPTRACE_UPLOAD_DIR` | `/data/jobs` | Shared upload folder for video tasks |
+| Variable | Recommended Value / Format | Purpose |
+|----------|----------------------------|---------|
+| `CELERY_BROKER_URL` | `rediss://default:<password>@<endpoint>:<port>` | Upstash Redis connection URL |
+| `CELERY_RESULT_BACKEND` | `rediss://default:<password>@<endpoint>:<port>` | Upstash Redis connection URL |
+| `METRICS_DB_PATH` | `/home/user/data/metrics.db` | Path to writable metrics SQLite DB |
+| `DEEPTRACE_DB_PATH` | `/home/user/data/deeptrace.db` | Path to writable API Key SQLite DB |
+| `DEEPTRACE_UPLOAD_DIR` | `/home/user/data/jobs` | Shared upload folder for video tasks |
 | `CORS_ORIGINS` | `<your-vercel-domain-url>` | Allowed origin for frontend requests |
 | `PYTHONPATH` | `/app` | Python path setup for module resolution |
 
 ---
 
-## Managed Redis Configuration
+## Upstash Redis Configuration
 
-- Provisions a managed Key-Value (Redis) instance on Render.
-- Shared between the rate limiter and the Celery broker/backend.
-- **Flower Dashboard**: Excluded from the initial deploy to minimize attack surface and cost, but can be added as a private service referencing the same Redis KV URL.
+- Provisions a free Redis-compatible database on Upstash (SSL enabled).
+- Serves as the centralized task broker and result backend.
