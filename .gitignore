@@ -7,10 +7,9 @@ build/
 .venv/
 venv/
 
-# Data and checkpoints
-checkpoints/
+# Data and checkpoints (best.pth tracked via Git LFS)
+checkpoints/*/last.pth
 data/
-*.pth
 *.pth.tar
 
 # Dataset cache
