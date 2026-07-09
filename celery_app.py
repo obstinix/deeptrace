@@ -24,6 +24,10 @@ celery_app = Celery(
 )
 
 celery_app.conf.update(
+    # Force use of resolved fallback URLs, overriding empty environment variables parsed at boot
+    broker_url               = BROKER_URL,
+    result_backend           = RESULT_URL,
+
     # Serialisation
     task_serializer          = "json",
     result_serializer        = "json",
