@@ -196,21 +196,22 @@ def _load_arch(architecture: str, checkpoint_path: Optional[str] = None) -> bool
         MODEL_REGISTRY[arch]["loaded"] = False
         return False
 
+def _ensure_model_loaded(architecture: str) -> None:
+    arch = architecture.lower()
+    entry = MODEL_REGISTRY.get(arch)
+    if entry and not entry["loaded"]:
+        print(f"[registry] Lazily loading '{arch}' on request...", flush=True)
+        _load_arch(arch)
+        _load_calibration(arch)
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await _init_key_db()
     print("[auth] key database ready")
     init_db()
-    # Load all available checkpoints
-    for arch in SUPPORTED_ARCHITECTURES:
-        _load_arch(arch)
-    
-    # Load temperature calibration files for all architectures
-    for arch in SUPPORTED_ARCHITECTURES:
-        _load_calibration(arch)
-    
-    # Load audio pipeline
-    AUDIO_PIPELINE.load()
+    # Load only the default model at startup to fit in Render 512MB RAM free tier
+    _load_arch(DEFAULT_MODEL)
+    _load_calibration(DEFAULT_MODEL)
 
     # Populate SHAP background from real training/validation frames (if available)
     import glob
@@ -494,6 +495,7 @@ async def predict_image(
         raise HTTPException(413, f"File too large ({len(contents)//1024}KB). Max {auth.tier.max_image_mb}MB.")
 
     arch  = model.lower()
+    _ensure_model_loaded(arch)
     entry = MODEL_REGISTRY.get(arch)
     if not entry or not entry["loaded"]:
         raise HTTPException(
@@ -807,6 +809,7 @@ async def predict_group(
     """
     # ── Model lookup ────────────────────────────────────────────────────────
     arch  = model.lower()
+    _ensure_model_loaded(arch)
     entry = MODEL_REGISTRY.get(arch)
     if not entry or not entry["loaded"]:
         raise HTTPException(
@@ -936,6 +939,7 @@ async def predict_video_sync(
         raise HTTPException(503, "No model loaded.")
 
     arch = model.lower()
+    _ensure_model_loaded(arch)
     entry = MODEL_REGISTRY.get(arch)
     if not entry or not entry["loaded"]:
         raise HTTPException(
@@ -1455,6 +1459,9 @@ async def predict_audio(
     Accepts: MP3, WAV, FLAC, M4A, OGG, AAC, WMA, OPUS.
     """
     if not AUDIO_PIPELINE.loaded:
+        print("[audio] Lazily loading audio pipeline on request...", flush=True)
+        AUDIO_PIPELINE.load()
+    if not AUDIO_PIPELINE.loaded:
         raise HTTPException(
             status_code=503,
             detail="Audio model (AASIST-L) not loaded. "
@@ -1524,6 +1531,7 @@ async def submit_explain_job(
         )
 
     arch  = model.lower()
+    _ensure_model_loaded(arch)
     entry = MODEL_REGISTRY.get(arch)
     if not entry or not entry["loaded"]:
         raise HTTPException(status_code=503,
