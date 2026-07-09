@@ -28,7 +28,21 @@ from typing import Optional, Tuple
 
 import redis
 
-REDIS_URL = (os.environ.get("CELERY_BROKER_URL") or "").strip() or "redis://localhost:6379/0"
+def _sanitize_redis_url(val: str) -> str:
+    raw_val = val
+    val = (val or "").strip()
+    if not val:
+        return ""
+    if "redis://" in val:
+        val = val[val.find("redis://"):]
+    elif "rediss://" in val:
+        val = val[val.find("rediss://"):]
+    val = val.split()[0]
+    if "rediss://" not in val and ("--tls" in raw_val or "upstash.io" in val):
+        val = val.replace("redis://", "rediss://")
+    return val.strip()
+
+REDIS_URL = _sanitize_redis_url(os.environ.get("CELERY_BROKER_URL")) or "redis://localhost:6379/0"
 
 # Use DB 2 for auth/rate-limit state (0=broker, 1=celery results)
 _AUTH_REDIS_URL = REDIS_URL.rsplit("/", 1)[0] + "/2"

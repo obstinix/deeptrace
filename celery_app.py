@@ -6,7 +6,28 @@ Imported by both the FastAPI app (to submit tasks) and the worker
 (to execute them). Must be importable from both contexts.
 """
 import os
-print(f"DEBUG: celery_app.py loading... os.environ CELERY_BROKER_URL={os.environ.get('CELERY_BROKER_URL')!r}", flush=True)
+def sanitize_redis_url(val: str) -> str:
+    raw_val = val
+    val = (val or "").strip()
+    if not val:
+        return ""
+    if "redis://" in val:
+        val = val[val.find("redis://"):]
+    elif "rediss://" in val:
+        val = val[val.find("rediss://"):]
+    val = val.split()[0]
+    if "rediss://" not in val and ("--tls" in raw_val or "upstash.io" in val):
+        val = val.replace("redis://", "rediss://")
+    return val.strip()
+
+# Clean up raw dashboard inputs (e.g. if user pasted a full command like redis-cli -u redis://...)
+for key in ["CELERY_BROKER_URL", "CELERY_RESULT_BACKEND"]:
+    if key in os.environ:
+        clean_val = sanitize_redis_url(os.environ[key])
+        if clean_val:
+            os.environ[key] = clean_val
+        else:
+            del os.environ[key]
 
 # Prevent Celery auto-discovery from overriding defaults with empty strings
 for key in ["CELERY_BROKER_URL", "CELERY_RESULT_BACKEND"]:
