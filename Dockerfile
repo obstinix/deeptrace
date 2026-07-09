@@ -21,6 +21,8 @@ COPY --chown=user celery_app.py celery_app.py
 COPY --chown=user worker/ worker/
 COPY --chown=user checkpoints/ checkpoints/
 COPY --chown=user start-deploy.sh start-deploy.sh
+COPY --chown=user index.html index.html
+COPY --chown=user webhooks.html webhooks.html
 
 RUN chmod +x start-deploy.sh && chown user:user start-deploy.sh
 ENV PYTHONPATH=/app/src:/app
